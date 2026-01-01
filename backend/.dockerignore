@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv
+
+# Credentials (these should be mounted as secrets in Cloud Run)
+credentials.json
+*.json
+!package.json
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+!README.md
+
+# Logs
+*.log
+
+# Frontend (not needed in backend container)
+frontend/
+node_modules/
+
+# Test files
+test_*.py
+*_test.py
+
