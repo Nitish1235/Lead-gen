@@ -27,6 +27,9 @@ wheels/
 .installed.cfg
 *.egg
 
+# Allow frontend/lib (TypeScript source files)
+!frontend/lib/
+
 # Virtual environments
 venv/
 env/
