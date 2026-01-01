@@ -17,8 +17,7 @@ RUN npm install
 # Copy all frontend source files (everything from frontend directory)
 # .dockerignore will exclude node_modules, .next, etc. from host
 # but node_modules from npm install above will be preserved
-# Use COPY with trailing slash to copy contents
-COPY frontend/. ./
+COPY frontend/ ./
 
 # Build Next.js (standalone mode for Docker deployment)
 ARG NEXT_PUBLIC_API_URL
