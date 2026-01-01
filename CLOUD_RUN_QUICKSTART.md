@@ -31,12 +31,8 @@ export PROJECT_ID="your-project-id"
 # 2. Store credentials in Secret Manager
 gcloud secrets create credentials-json --data-file=credentials.json --project=$PROJECT_ID
 
-# 3. Deploy backend
-./deploy-backend-cloudrun.sh $PROJECT_ID us-central1
-
-# 4. Note the backend URL, then deploy frontend
-# (Replace BACKEND_URL with actual URL from step 3)
-./deploy-frontend-cloudrun.sh $PROJECT_ID us-central1 BACKEND_URL
+# 3. Deploy unified application (frontend + backend)
+./deploy-cloudrun-unified.sh $PROJECT_ID us-central1
 ```
 
 ## Manual Steps (If Scripts Don't Work)
@@ -106,9 +102,9 @@ gcloud run services update lead-discovery-backend \
 
 ## Verify Deployment
 
-1. Get your frontend URL:
+1. Get your application URL:
    ```bash
-   gcloud run services describe lead-discovery-frontend \
+   gcloud run services describe lead-discovery-app \
      --platform managed --region us-central1 \
      --format 'value(status.url)' --project=YOUR_PROJECT_ID
    ```
@@ -122,18 +118,15 @@ gcloud run services update lead-discovery-backend \
 ### Check Logs
 
 ```bash
-# Backend logs
-gcloud run services logs tail lead-discovery-backend --region us-central1
-
-# Frontend logs
-gcloud run services logs tail lead-discovery-frontend --region us-central1
+# Application logs (unified service)
+gcloud run services logs tail lead-discovery-app --region us-central1
 ```
 
 ### Common Issues
 
 1. **Credentials not found**: Make sure secret is created and mounted
-2. **CORS errors**: Update `ALLOWED_ORIGINS` env var
-3. **Build fails**: Check Cloud Build logs in GCP Console
+2. **Build fails**: Check Cloud Build logs in GCP Console
+3. **Frontend not loading**: Check that static files are being served correctly
 
 ## Costs
 

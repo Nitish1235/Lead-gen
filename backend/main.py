@@ -60,8 +60,15 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Lead Discovery API", version="1.0.0", lifespan=lifespan)
 
 # CORS middleware for Next.js frontend
-# Allow origins from environment variable or default to localhost for development
-allowed_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+# In unified deployment, frontend is served from same origin, so allow all
+# For development, allow localhost origins
+allowed_origins_env = os.environ.get("ALLOWED_ORIGINS", "")
+if allowed_origins_env:
+    allowed_origins = allowed_origins_env.split(",")
+else:
+    # Default: allow same origin (unified deployment) and localhost (development)
+    allowed_origins = ["*"]  # Allow all in unified deployment
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -71,12 +78,50 @@ app.add_middleware(
 )
 
 
-@app.get("/")
+# Mount static files for frontend (in unified deployment)
+# Check if frontend directory exists (unified deployment)
+frontend_path = os.path.join(parent_dir, "frontend")
+if os.path.exists(frontend_path):
+    # Mount Next.js static files
+    static_path = os.path.join(frontend_path, ".next", "static")
+    if os.path.exists(static_path):
+        app.mount("/_next/static", StaticFiles(directory=static_path), name="static")
+    
+    # Serve public assets
+    public_path = os.path.join(frontend_path, "public")
+    if os.path.exists(public_path):
+        app.mount("/public", StaticFiles(directory=public_path), name="public")
+    
+    # Serve frontend for all non-API routes (SPA routing)
+    # Next.js standalone creates server.js, but we'll serve the HTML directly
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        # Don't serve API routes as frontend
+        if full_path.startswith("api") or full_path.startswith("_next") or full_path.startswith("public"):
+            raise HTTPException(status_code=404)
+        
+        # In standalone mode, HTML files are in the root of frontend directory
+        # Try to serve the requested file, or fallback to index.html
+        requested_file = os.path.join(frontend_path, full_path)
+        
+        # If it's a directory or doesn't exist, serve index.html
+        if os.path.isdir(requested_file) or not os.path.exists(requested_file):
+            index_path = os.path.join(frontend_path, "index.html")
+            if os.path.exists(index_path):
+                return FileResponse(index_path)
+        else:
+            # Serve the requested file
+            return FileResponse(requested_file)
+        
+        raise HTTPException(status_code=404, detail="Frontend not found")
+
+
+@app.get("/api")
 async def root():
     return {"message": "Lead Discovery API", "version": "1.0.0"}
 
 
-@app.get("/status")
+@app.get("/api/status")
 async def get_status():
     """Get current discovery status"""
     if not discovery_app:
@@ -86,7 +131,7 @@ async def get_status():
     return status
 
 
-@app.post("/start")
+@app.post("/api/start")
 async def start_discovery(request: DiscoveryRequest):
     """Start lead discovery"""
     global current_leads
@@ -115,7 +160,7 @@ async def start_discovery(request: DiscoveryRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/stop")
+@app.post("/api/stop")
 async def stop_discovery():
     """Stop lead discovery"""
     if not discovery_app:
@@ -128,7 +173,7 @@ async def stop_discovery():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/leads")
+@app.get("/api/leads")
 async def get_leads(run_id: Optional[str] = None):
     """Get discovered leads"""
     # Filter by run_id if provided
@@ -138,19 +183,19 @@ async def get_leads(run_id: Optional[str] = None):
     return current_leads
 
 
-@app.get("/countries")
+@app.get("/api/countries")
 async def get_countries():
     """Get list of all supported countries"""
     return list_all_countries()
 
 
-@app.get("/categories")
+@app.get("/api/categories")
 async def get_categories():
     """Get list of all supported categories"""
     return config.DEFAULT_CATEGORIES
 
 
-@app.get("/stats")
+@app.get("/api/stats")
 async def get_stats():
     """Get statistics about discovered leads"""
     if not current_leads:

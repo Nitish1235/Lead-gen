@@ -38,7 +38,7 @@ This deployment uses:
 
 ---
 
-## Quick Start (Automated Deployment)
+## Quick Start (Unified Deployment)
 
 ### Option 1: Using PowerShell Script (Windows)
 
@@ -46,22 +46,21 @@ This deployment uses:
 # Navigate to project root
 cd "F:\SAAS\Lead Gen"
 
-# Deploy (replace with your project ID)
-.\deploy-cloudrun.ps1 -ProjectId "your-project-id" -Region "us-central1"
+# Deploy unified frontend+backend (replace with your project ID)
+.\deploy-cloudrun-unified.ps1 -ProjectId "your-project-id" -Region "us-central1"
 ```
 
 ### Option 2: Using Bash Script (Linux/Mac)
 
 ```bash
-# Make scripts executable
-chmod +x deploy-backend-cloudrun.sh deploy-frontend-cloudrun.sh
+# Make script executable
+chmod +x deploy-cloudrun-unified.sh
 
-# Deploy backend
-./deploy-backend-cloudrun.sh your-project-id us-central1
-
-# Note the backend URL, then deploy frontend
-./deploy-frontend-cloudrun.sh your-project-id us-central1 https://backend-url.run.app
+# Deploy unified frontend+backend
+./deploy-cloudrun-unified.sh your-project-id us-central1
 ```
+
+**Note:** This deploys both frontend and backend together as a single service. See [UNIFIED_DEPLOYMENT.md](./UNIFIED_DEPLOYMENT.md) for more details.
 
 ---
 
@@ -116,17 +115,17 @@ GOOGLE_MAPS_API_KEY: your_maps_api_key
 PYTHONUNBUFFERED: "1"
 ```
 
-### Step 4: Deploy Backend
+### Step 4: Deploy Unified Application
 
 ```bash
-# Build and push Docker image
-gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/lead-discovery-backend \
+# Build and push Docker image (unified frontend + backend)
+gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/lead-discovery-app \
   --project=YOUR_PROJECT_ID \
-  --config=backend/cloudbuild.yaml
+  --config=cloudbuild.yaml
 
-# Deploy to Cloud Run
-gcloud run deploy lead-discovery-backend \
-  --image gcr.io/YOUR_PROJECT_ID/lead-discovery-backend \
+# Deploy to Cloud Run (single service)
+gcloud run deploy lead-discovery-app \
+  --image gcr.io/YOUR_PROJECT_ID/lead-discovery-app \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
@@ -134,81 +133,39 @@ gcloud run deploy lead-discovery-backend \
   --cpu 2 \
   --timeout 3600 \
   --max-instances 10 \
+  --port 8080 \
   --update-secrets=GOOGLE_SHEETS_CREDENTIALS_PATH=credentials-json:latest \
   --set-env-vars="GOOGLE_SHEETS_SPREADSHEET_ID=your_spreadsheet_id,GOOGLE_SHEETS_WORKSHEET_NAME=Leads,GOOGLE_MAPS_API_KEY=your_api_key,PYTHONUNBUFFERED=1" \
   --project=YOUR_PROJECT_ID
 
-# Get backend URL
-BACKEND_URL=$(gcloud run services describe lead-discovery-backend \
+# Get service URL
+SERVICE_URL=$(gcloud run services describe lead-discovery-app \
   --platform managed \
   --region us-central1 \
   --format 'value(status.url)' \
   --project=YOUR_PROJECT_ID)
 
-echo "Backend URL: $BACKEND_URL"
+echo "Application URL: $SERVICE_URL"
 ```
 
-### Step 5: Deploy Frontend
-
-```bash
-# Build and push Docker image (with backend URL)
-gcloud builds submit \
-  --tag gcr.io/YOUR_PROJECT_ID/lead-discovery-frontend \
-  --substitutions=_NEXT_PUBLIC_API_URL=${BACKEND_URL} \
-  --project=YOUR_PROJECT_ID \
-  --config=frontend/cloudbuild.yaml
-
-# Deploy to Cloud Run
-gcloud run deploy lead-discovery-frontend \
-  --image gcr.io/YOUR_PROJECT_ID/lead-discovery-frontend \
-  --platform managed \
-  --region us-central1 \
-  --allow-unauthenticated \
-  --memory 512Mi \
-  --cpu 1 \
-  --timeout 300 \
-  --max-instances 10 \
-  --set-env-vars="NEXT_PUBLIC_API_URL=${BACKEND_URL}" \
-  --project=YOUR_PROJECT_ID
-
-# Get frontend URL
-FRONTEND_URL=$(gcloud run services describe lead-discovery-frontend \
-  --platform managed \
-  --region us-central1 \
-  --format 'value(status.url)' \
-  --project=YOUR_PROJECT_ID)
-
-echo "Frontend URL: $FRONTEND_URL"
-```
-
-### Step 6: Configure CORS (if needed)
-
-If frontend and backend are on different domains, update backend CORS:
-
-```bash
-gcloud run services update lead-discovery-backend \
-  --update-env-vars="ALLOWED_ORIGINS=${FRONTEND_URL}" \
-  --region us-central1 \
-  --project=YOUR_PROJECT_ID
-```
+**Note:** The unified deployment serves both frontend and backend from a single URL. No CORS configuration needed!
 
 ---
 
-## Dockerfiles Overview
+## Dockerfile Overview
 
-### Backend Dockerfile (`backend/Dockerfile`)
+### Unified Dockerfile (`Dockerfile`)
 
-- Base: Python 3.11-slim
-- Installs: Chrome, Python dependencies, application code
-- Exposes: PORT (default 8080, Cloud Run sets this automatically)
-- Command: Runs FastAPI with uvicorn
+- **Stage 1 (Frontend Builder):** Node.js 20-alpine
+  - Builds Next.js frontend as standalone output
+  
+- **Stage 2 (Runtime):** Python 3.11-slim
+  - Installs Chrome, Python dependencies
+  - Copies built frontend from Stage 1
+  - FastAPI serves both API (`/api/*`) and frontend (`/*`)
+  - Exposes: PORT 8080 (Cloud Run sets this automatically)
 
-### Frontend Dockerfile (`frontend/Dockerfile`)
-
-- Build stage: Node.js 20, builds Next.js app
-- Production stage: Node.js 20 alpine, serves built app
-- Uses Next.js standalone output for optimal Docker deployment
-- Exposes: PORT 3000 (Cloud Run sets this automatically)
+For details, see the `Dockerfile` in the project root.
 
 ---
 
@@ -234,37 +191,22 @@ Environment variables needed:
 
 ## Updating/Re-deploying
 
-### Update Backend
+### Update Application
 
 ```bash
-# Rebuild and redeploy
-gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/lead-discovery-backend \
+# Rebuild and redeploy unified application
+gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/lead-discovery-app \
   --project=YOUR_PROJECT_ID \
-  --config=backend/cloudbuild.yaml
+  --config=cloudbuild.yaml
 
-gcloud run deploy lead-discovery-backend \
-  --image gcr.io/YOUR_PROJECT_ID/lead-discovery-backend \
+gcloud run deploy lead-discovery-app \
+  --image gcr.io/YOUR_PROJECT_ID/lead-discovery-app \
   --platform managed \
   --region us-central1 \
   --project=YOUR_PROJECT_ID
 ```
 
-### Update Frontend
-
-```bash
-# Rebuild and redeploy
-gcloud builds submit \
-  --tag gcr.io/YOUR_PROJECT_ID/lead-discovery-frontend \
-  --substitutions=_NEXT_PUBLIC_API_URL=${BACKEND_URL} \
-  --project=YOUR_PROJECT_ID \
-  --config=frontend/cloudbuild.yaml
-
-gcloud run deploy lead-discovery-frontend \
-  --image gcr.io/YOUR_PROJECT_ID/lead-discovery-frontend \
-  --platform managed \
-  --region us-central1 \
-  --project=YOUR_PROJECT_ID
-```
+Or simply run the deployment script again - it will update the existing service.
 
 ---
 
@@ -287,7 +229,7 @@ gcloud run services logs tail lead-discovery-backend --region us-central1
 
 ```bash
 # Service details
-gcloud run services describe lead-discovery-backend --region us-central1
+gcloud run services describe lead-discovery-app --region us-central1
 
 # List all services
 gcloud run services list
@@ -408,23 +350,18 @@ gcloud run services describe lead-discovery-backend --region us-central1
 
 3. Verify secret is mounted:
    ```bash
-   gcloud run services describe lead-discovery-backend --format="value(spec.template.spec.containers[0].env)" --region us-central1
+   gcloud run services describe lead-discovery-app --format="value(spec.template.spec.containers[0].env)" --region us-central1
    ```
 
 ### CORS Errors
 
-Update `ALLOWED_ORIGINS` environment variable:
-```bash
-gcloud run services update lead-discovery-backend \
-  --update-env-vars="ALLOWED_ORIGINS=https://your-frontend-url.run.app" \
-  --region us-central1
-```
+In unified deployment, CORS is not an issue since frontend and backend are on the same domain. If you see CORS errors, check that the API routes are prefixed with `/api`.
 
 ### Out of Memory
 
 Increase memory allocation:
 ```bash
-gcloud run services update lead-discovery-backend \
+gcloud run services update lead-discovery-app \
   --memory 4Gi \
   --region us-central1
 ```
@@ -511,17 +448,17 @@ jobs:
 # List services
 gcloud run services list
 
-# View service details
-gcloud run services describe SERVICE_NAME --region REGION
+# View service details (unified service)
+gcloud run services describe lead-discovery-app --region us-central1
 
 # View logs
-gcloud run services logs tail SERVICE_NAME --region REGION
+gcloud run services logs tail lead-discovery-app --region us-central1
 
 # Update service
-gcloud run services update SERVICE_NAME --region REGION
+gcloud run services update lead-discovery-app --region us-central1
 
 # Delete service
-gcloud run services delete SERVICE_NAME --region REGION
+gcloud run services delete lead-discovery-app --region us-central1
 
 # View secrets
 gcloud secrets list

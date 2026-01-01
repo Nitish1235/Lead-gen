@@ -1,7 +1,32 @@
-# Dockerfile for B2B Lead Discovery System (Cloud Run / Container)
-# Note: This requires creating an API wrapper (not included)
-# For most use cases, use Compute Engine VM instead (see DEPLOYMENT_GCP.md)
+# Combined Dockerfile for Frontend + Backend (Cloud Run)
+# This builds both Next.js frontend and FastAPI backend in one container
 
+# ============================================
+# Stage 1: Build Frontend
+# ============================================
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /app/frontend
+
+# Copy package files
+COPY frontend/package.json frontend/package-lock.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy frontend source
+COPY frontend/ ./
+
+# Build Next.js as static export (for serving from backend)
+# We'll use standalone mode instead for better integration
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+
+RUN npm run build
+
+# ============================================
+# Stage 2: Build Backend + Combine
+# ============================================
 FROM python:3.11-slim
 
 # Install system dependencies
@@ -12,34 +37,43 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Google Chrome
+# Install Google Chrome (for Selenium if needed)
 RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
     && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
     && apt-get update \
     && apt-get install -y google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /app
 
-# Copy requirements and install
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy backend requirements
+COPY backend/requirements.txt /app/backend_requirements.txt
+COPY requirements.txt /app/root_requirements.txt
 
-# Copy application code
-COPY . .
+# Install Python dependencies
+RUN pip install --no-cache-dir -r /app/backend_requirements.txt && \
+    pip install --no-cache-dir -r /app/root_requirements.txt
 
-# Create directory for credentials (mounted as volume)
+# Copy backend code
+COPY backend/ /app/backend/
+COPY main.py config.py countries.py lead_scorer.py maps_discoverer.py \
+     sheets_manager.py website_analyzer.py /app/
+
+# Copy built frontend from builder
+# Next.js standalone output includes everything needed
+COPY --from=frontend-builder /app/frontend/.next/standalone /app/frontend/
+COPY --from=frontend-builder /app/frontend/.next/static /app/frontend/.next/static
+# Create public directory (public assets are usually in standalone)
+RUN mkdir -p /app/frontend/public
+
+# Create directory for credentials
 RUN mkdir -p /app/credentials
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
-ENV GOOGLE_SHEETS_CREDENTIALS_PATH=/app/credentials/credentials.json
+ENV PYTHONPATH=/app
+ENV PORT=8080
 
-# Note: You would need to create an API server (api_server.py)
-# that wraps the LeadDiscoveryApp class for Cloud Run
-# CMD ["python", "api_server.py"]
-
-# For now, default to main.py (if running interactively)
-CMD ["python", "main.py"]
-
+# Cloud Run requires listening on PORT env variable
+# FastAPI will serve both API and static frontend files
+CMD exec uvicorn backend.main:app --host 0.0.0.0 --port ${PORT} --workers 1
