@@ -8,15 +8,23 @@ FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 
-# Copy package.json first for better caching
+# Copy package.json first for better Docker layer caching
 COPY frontend/package.json ./
 
 # Install dependencies
-# npm install works with or without package-lock.json (will generate one if missing)
 RUN npm install
 
-# Copy all frontend source files (must copy everything for build to work)
-COPY frontend/ ./
+# Copy all remaining frontend source files
+# Using explicit COPY to ensure all files are included
+COPY frontend/app ./app
+COPY frontend/components ./components  
+COPY frontend/lib ./lib
+COPY frontend/public ./public
+COPY frontend/tsconfig.json ./
+COPY frontend/next.config.js ./
+COPY frontend/postcss.config.js ./
+COPY frontend/tailwind.config.js ./
+COPY frontend/next-env.d.ts ./
 
 # Build Next.js as static export (for serving from backend)
 # We'll use standalone mode instead for better integration
