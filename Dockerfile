@@ -8,17 +8,25 @@ FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 
-# Copy package.json first for better Docker layer caching
+# Copy package files first for better Docker layer caching
 COPY frontend/package.json ./
 
 # Install dependencies
 RUN npm install
 
-# Copy all remaining frontend source files (everything except node_modules which is installed above)
-COPY frontend/ ./
+# Copy all frontend source files (after npm install to preserve node_modules)
+# .dockerignore excludes node_modules, so only source files are copied
+COPY frontend/app ./app
+COPY frontend/components ./components
+COPY frontend/lib ./lib
+COPY frontend/public ./public
+COPY frontend/tsconfig.json ./
+COPY frontend/next.config.js ./
+COPY frontend/postcss.config.js ./
+COPY frontend/tailwind.config.js ./
+COPY frontend/next-env.d.ts ./
 
-# Build Next.js as static export (for serving from backend)
-# We'll use standalone mode instead for better integration
+# Build Next.js (standalone mode for Docker deployment)
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
 
