@@ -37,7 +37,8 @@ Thumbs.db
 # Logs
 *.log
 
-# Node modules (will be installed during build)
+# Node modules (will be installed during build, but exclude from source)
+node_modules/
 **/node_modules/
 
 # Build outputs (will be generated during build)

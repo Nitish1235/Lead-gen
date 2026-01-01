@@ -8,16 +8,12 @@ FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 
-# Copy package.json first for better Docker layer caching
-COPY frontend/package.json ./
+# Copy ALL frontend files at once (including package.json)
+# This ensures all source files are present before npm install
+COPY frontend/ ./
 
 # Install dependencies
 RUN npm install
-
-# Copy all frontend source files (everything from frontend directory)
-# .dockerignore will exclude node_modules, .next, etc. from host
-# but node_modules from npm install above will be preserved
-COPY frontend/ ./
 
 # Build Next.js (standalone mode for Docker deployment)
 ARG NEXT_PUBLIC_API_URL
