@@ -17,7 +17,7 @@ RUN npm install
 # Copy all remaining frontend files
 COPY frontend/ ./
 
-# Build Next.js (standalone mode for Docker deployment)
+# Build Next.js (static export mode for FastAPI to serve)
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
 
@@ -59,16 +59,8 @@ COPY main.py config.py countries.py lead_scorer.py maps_discoverer.py \
      sheets_manager.py website_analyzer.py /app/
 
 # Copy built frontend from builder
-# Next.js standalone mode creates .next/standalone directory with server.js, .next, node_modules, etc.
-# Copy the entire standalone directory structure
-COPY --from=frontend-builder /app/frontend/.next/standalone /app/frontend/
-
-# Copy static files to expected location (FastAPI expects .next/static at root level)
-# Standalone includes .next inside standalone, but we need it accessible at /app/frontend/.next/static
-COPY --from=frontend-builder /app/frontend/.next/static /app/frontend/.next/static
-
-# Ensure public directory exists (standalone may include it, but ensure it's accessible)
-RUN mkdir -p /app/frontend/public
+# Next.js export mode creates an 'out' directory with static HTML files
+COPY --from=frontend-builder /app/frontend/out /app/frontend
 
 # Create directory for credentials
 RUN mkdir -p /app/credentials

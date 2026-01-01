@@ -3,8 +3,11 @@ const path = require('path')
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  output: 'standalone', // Required for Docker/Cloud Run deployment
+  output: 'export', // Static export for FastAPI to serve
   // No rewrites needed in unified deployment - FastAPI handles routing
+  images: {
+    unoptimized: true, // Required for static export
+  },
   
   webpack: (config) => {
     // Ensure @ alias resolves correctly

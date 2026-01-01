@@ -104,36 +104,31 @@ app.add_middleware(
 # Check if frontend directory exists (unified deployment)
 frontend_path = os.path.join(parent_dir, "frontend")
 if os.path.exists(frontend_path):
-    # Mount Next.js static files
-    static_path = os.path.join(frontend_path, ".next", "static")
+    # Next.js export creates static files in the frontend directory
+    # Mount static assets (_next directory if it exists)
+    static_path = os.path.join(frontend_path, "_next")
     if os.path.exists(static_path):
-        app.mount("/_next/static", StaticFiles(directory=static_path), name="static")
-    
-    # Serve public assets
-    public_path = os.path.join(frontend_path, "public")
-    if os.path.exists(public_path):
-        app.mount("/public", StaticFiles(directory=public_path), name="public")
+        app.mount("/_next", StaticFiles(directory=static_path), name="next-static")
     
     # Serve frontend for all non-API routes (SPA routing)
-    # Next.js standalone creates server.js, but we'll serve the HTML directly
+    # Next.js export mode creates index.html in the frontend directory
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
         # Don't serve API routes as frontend
-        if full_path.startswith("api") or full_path.startswith("_next") or full_path.startswith("public"):
+        if full_path.startswith("api") or full_path.startswith("_next"):
             raise HTTPException(status_code=404)
         
-        # In standalone mode, HTML files are in the root of frontend directory
-        # Try to serve the requested file, or fallback to index.html
+        # Try to serve the requested file
         requested_file = os.path.join(frontend_path, full_path)
         
-        # If it's a directory or doesn't exist, serve index.html
-        if os.path.isdir(requested_file) or not os.path.exists(requested_file):
-            index_path = os.path.join(frontend_path, "index.html")
-            if os.path.exists(index_path):
-                return FileResponse(index_path)
-        else:
-            # Serve the requested file
+        # If it's a file, serve it
+        if os.path.isfile(requested_file):
             return FileResponse(requested_file)
+        
+        # If it's a directory or doesn't exist, serve index.html (SPA routing)
+        index_path = os.path.join(frontend_path, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path)
         
         raise HTTPException(status_code=404, detail="Frontend not found")
 
