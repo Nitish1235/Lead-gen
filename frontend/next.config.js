@@ -6,12 +6,11 @@ const nextConfig = {
   output: 'standalone', // Required for Docker/Cloud Run deployment
   // No rewrites needed in unified deployment - FastAPI handles routing
   
-  webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
-    // Add alias for @ path resolution
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      '@': path.resolve(__dirname),
-    }
+  webpack: (config) => {
+    // Ensure @ alias resolves correctly
+    const alias = config.resolve.alias || {}
+    alias['@'] = path.join(__dirname)
+    config.resolve.alias = alias
     return config
   },
 }
