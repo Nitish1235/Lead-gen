@@ -8,11 +8,11 @@ FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 
-# Copy package files first for better caching
+# Copy package.json first for better caching
 COPY frontend/package.json ./
-COPY frontend/package-lock.json* ./
 
 # Install dependencies
+# npm install works with or without package-lock.json (will generate one if missing)
 RUN npm install
 
 # Copy all frontend source files (must copy everything for build to work)
