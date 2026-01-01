@@ -19,10 +19,29 @@ sys.path.insert(0, parent_dir)
 # Change working directory to parent (root) so credentials.json can be found
 os.chdir(parent_dir)
 
-# Import from parent directory
-from main import LeadDiscoveryApp
-from countries import list_all_countries
-import config
+# Import config (lightweight import - should always work)
+try:
+    import config
+except Exception as e:
+    print(f"⚠ Warning: Failed to import config: {e}")
+    config = None
+
+# Lazy import of LeadDiscoveryApp - import only when needed to avoid startup failures
+# This allows the FastAPI app to start even if main.py has import issues
+LeadDiscoveryApp = None
+list_all_countries = None
+
+def _lazy_import_discovery_app():
+    """Lazy import of LeadDiscoveryApp and related modules"""
+    global LeadDiscoveryApp, list_all_countries
+    if LeadDiscoveryApp is None:
+        try:
+            from main import LeadDiscoveryApp
+            from countries import list_all_countries
+        except Exception as e:
+            print(f"⚠ Error: Failed to import discovery modules: {e}")
+            raise
+    return LeadDiscoveryApp, list_all_countries
 
 # Global app instance
 discovery_app = None
@@ -46,7 +65,8 @@ async def lifespan(app: FastAPI):
     # Startup
     global discovery_app
     try:
-        discovery_app = LeadDiscoveryApp(lead_callback=on_lead_found)
+        LeadDiscoveryAppClass, _ = _lazy_import_discovery_app()
+        discovery_app = LeadDiscoveryAppClass(lead_callback=on_lead_found)
         print("✓ Discovery app initialized successfully")
     except Exception as e:
         print(f"⚠ Warning: Failed to initialize discovery app: {e}")
@@ -188,12 +208,18 @@ async def get_leads(run_id: Optional[str] = None):
 @app.get("/api/countries")
 async def get_countries():
     """Get list of all supported countries"""
-    return list_all_countries()
+    try:
+        _, list_all_countries_func = _lazy_import_discovery_app()
+        return list_all_countries_func()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load countries: {str(e)}")
 
 
 @app.get("/api/categories")
 async def get_categories():
     """Get list of all supported categories"""
+    if config is None:
+        raise HTTPException(status_code=500, detail="Config not loaded")
     return config.DEFAULT_CATEGORIES
 
 
