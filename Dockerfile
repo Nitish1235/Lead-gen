@@ -18,7 +18,8 @@ RUN npm install
 COPY frontend/app ./app
 COPY frontend/components ./components
 COPY frontend/lib ./lib
-COPY frontend/public ./public
+# Create public directory (Next.js doesn't require it, but create for consistency)
+RUN mkdir -p ./public
 COPY frontend/tsconfig.json ./
 COPY frontend/next.config.js ./
 COPY frontend/postcss.config.js ./
