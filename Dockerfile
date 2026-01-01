@@ -14,17 +14,8 @@ COPY frontend/package.json ./
 # Install dependencies
 RUN npm install
 
-# Copy all remaining frontend source files
-# Using explicit COPY to ensure all files are included
-COPY frontend/app ./app
-COPY frontend/components ./components  
-COPY frontend/lib ./lib
-COPY frontend/public ./public
-COPY frontend/tsconfig.json ./
-COPY frontend/next.config.js ./
-COPY frontend/postcss.config.js ./
-COPY frontend/tailwind.config.js ./
-COPY frontend/next-env.d.ts ./
+# Copy all remaining frontend source files (everything except node_modules which is installed above)
+COPY frontend/ ./
 
 # Build Next.js as static export (for serving from backend)
 # We'll use standalone mode instead for better integration
