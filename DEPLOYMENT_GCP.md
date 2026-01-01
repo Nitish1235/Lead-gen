@@ -2,10 +2,17 @@
 
 This guide covers deploying the B2B Lead Discovery System on Google Cloud Platform using **Cloud Run** (serverless containers). This is the recommended deployment method for production use.
 
+## Deployment Methods
+
+Choose your preferred method:
+1. **🖥️ Manual Deployment via Google Cloud Console** - [MANUAL_DEPLOYMENT_GCP_CONSOLE.md](./MANUAL_DEPLOYMENT_GCP_CONSOLE.md) - Step-by-step UI guide
+2. **⚡ Quick CLI Deployment** - Use the deployment scripts (this document)
+3. **🔧 Manual CLI Deployment** - Use gcloud commands directly (this document)
+
 ## Overview
 
 This deployment uses:
-- **Cloud Run** for both frontend (Next.js) and backend (FastAPI)
+- **Cloud Run** for both frontend (Next.js) and backend (FastAPI) in a unified container
 - **Secret Manager** for storing credentials securely
 - **Container Registry** for Docker images
 - **Cloud Build** for automated builds
@@ -16,6 +23,7 @@ This deployment uses:
 - ✅ Free tier: 2 million requests, 360,000 GB-seconds/month
 - ✅ HTTPS by default
 - ✅ Easy CI/CD integration
+- ✅ Single unified deployment (frontend + backend together)
 
 **Estimated Cost:** $0-10/month (within free tier for moderate usage)
 
