@@ -10,10 +10,12 @@ env/
 
 # Credentials
 credentials.json
-*.json
-!package.json
 .env
 .env.local
+
+# JSON files - exclude all except package.json files
+*.json
+!**/package.json
 
 # IDE
 .vscode/
@@ -36,3 +38,10 @@ Thumbs.db
 # Logs
 *.log
 
+# Node modules (will be installed during build)
+**/node_modules/
+
+# Build outputs
+.next/
+dist/
+out/

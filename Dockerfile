@@ -8,11 +8,12 @@ FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 
-# Copy package files
-COPY frontend/package.json frontend/package-lock.json ./
+# Copy package.json
+COPY frontend/package.json ./
 
 # Install dependencies
-RUN npm ci
+# Using npm install (instead of npm ci) so it works with or without package-lock.json
+RUN npm install
 
 # Copy frontend source
 COPY frontend/ ./
@@ -60,10 +61,15 @@ COPY main.py config.py countries.py lead_scorer.py maps_discoverer.py \
      sheets_manager.py website_analyzer.py /app/
 
 # Copy built frontend from builder
-# Next.js standalone output includes everything needed
+# Next.js standalone mode creates .next/standalone directory with server.js, .next, node_modules, etc.
+# Copy the entire standalone directory structure
 COPY --from=frontend-builder /app/frontend/.next/standalone /app/frontend/
+
+# Copy static files to expected location (FastAPI expects .next/static at root level)
+# Standalone includes .next inside standalone, but we need it accessible at /app/frontend/.next/static
 COPY --from=frontend-builder /app/frontend/.next/static /app/frontend/.next/static
-# Create public directory (public assets are usually in standalone)
+
+# Ensure public directory exists (standalone may include it, but ensure it's accessible)
 RUN mkdir -p /app/frontend/public
 
 # Create directory for credentials
