@@ -8,14 +8,14 @@ FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 
-# Copy package.json
+# Copy package files first for better caching
 COPY frontend/package.json ./
+COPY frontend/package-lock.json* ./
 
 # Install dependencies
-# Using npm install (instead of npm ci) so it works with or without package-lock.json
 RUN npm install
 
-# Copy frontend source
+# Copy all frontend source files (must copy everything for build to work)
 COPY frontend/ ./
 
 # Build Next.js as static export (for serving from backend)

@@ -8,14 +8,13 @@ venv/
 env/
 .venv
 
-# Credentials
+# Credentials and sensitive files (explicitly exclude)
 credentials.json
+*.pem
+*.key
 .env
 .env.local
-
-# JSON files - exclude all except package.json files
-*.json
-!**/package.json
+.env.*.local
 
 # IDE
 .vscode/
@@ -31,7 +30,7 @@ Thumbs.db
 .git/
 .gitignore
 
-# Documentation
+# Documentation (except README)
 *.md
 !README.md
 
@@ -41,7 +40,12 @@ Thumbs.db
 # Node modules (will be installed during build)
 **/node_modules/
 
-# Build outputs
+# Build outputs (will be generated during build)
 .next/
 dist/
 out/
+
+# Test files
+**/__tests__/
+**/*.test.*
+**/*.spec.*
