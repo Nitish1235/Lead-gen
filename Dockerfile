@@ -15,6 +15,9 @@ COPY frontend/ ./
 # Install dependencies
 RUN npm install
 
+# Verify lib directory exists (critical for build)
+RUN ls -la lib/ || (echo "ERROR: lib directory not found!" && ls -la && exit 1)
+
 # Build Next.js (standalone mode for Docker deployment)
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
