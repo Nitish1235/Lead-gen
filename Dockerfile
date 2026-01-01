@@ -8,15 +8,22 @@ FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 
-# Copy ALL frontend files at once (including package.json)
-# This ensures all source files are present before npm install
-COPY frontend/ ./
+# Copy package.json first for caching
+COPY frontend/package.json ./
 
 # Install dependencies
 RUN npm install
 
-# Verify lib directory exists (critical for build)
-RUN ls -la lib/ || (echo "ERROR: lib directory not found!" && ls -la && exit 1)
+# Copy all source files explicitly to ensure lib directory is included
+COPY frontend/app ./app
+COPY frontend/components ./components
+COPY frontend/lib ./lib
+COPY frontend/public ./public
+COPY frontend/tsconfig.json ./
+COPY frontend/next.config.js ./
+COPY frontend/postcss.config.js ./
+COPY frontend/tailwind.config.js ./
+COPY frontend/next-env.d.ts ./
 
 # Build Next.js (standalone mode for Docker deployment)
 ARG NEXT_PUBLIC_API_URL
