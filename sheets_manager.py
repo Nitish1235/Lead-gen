@@ -24,17 +24,37 @@ class SheetsManager:
     def _initialize_service(self):
         """Initialize Google Sheets API service"""
         try:
+            creds_path = config.GOOGLE_SHEETS_CREDENTIALS_PATH
+            
+            # Check if creds_path is actually JSON content (starts with {)
+            # This happens when Cloud Run secrets are set as environment variables
+            if creds_path and creds_path.strip().startswith('{'):
+                import json
+                import tempfile
+                # Parse the JSON to validate it
+                try:
+                    creds_data = json.loads(creds_path)
+                    # Write to a temporary file
+                    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                        json.dump(creds_data, f)
+                        temp_file_path = f.name
+                    creds_path = temp_file_path
+                    print(f"✓ Credentials provided as JSON, wrote to temp file: {temp_file_path}")
+                except json.JSONDecodeError as e:
+                    raise ValueError(f"Invalid JSON in GOOGLE_SHEETS_CREDENTIALS_PATH: {e}")
+            
             # Try service account first (recommended for automation)
-            if os.path.exists(config.GOOGLE_SHEETS_CREDENTIALS_PATH):
+            if os.path.exists(creds_path):
                 creds = service_account.Credentials.from_service_account_file(
-                    config.GOOGLE_SHEETS_CREDENTIALS_PATH,
+                    creds_path,
                     scopes=['https://www.googleapis.com/auth/spreadsheets']
                 )
                 self.service = build('sheets', 'v4', credentials=creds)
+                print(f"✓ Google Sheets service initialized from: {creds_path}")
             else:
                 raise FileNotFoundError(
-                    f"Credentials file not found: {config.GOOGLE_SHEETS_CREDENTIALS_PATH}\n"
-                    "Please download credentials.json from Google Cloud Console"
+                    f"Credentials file not found: {creds_path}\n"
+                    "Please download credentials.json from Google Cloud Console or set GOOGLE_SHEETS_CREDENTIALS_PATH"
                 )
         except Exception as e:
             raise Exception(f"Failed to initialize Google Sheets service: {e}")

@@ -84,7 +84,12 @@ async def lifespan(app: FastAPI):
         print(f"⚠ Warning: Failed to initialize discovery app: {e}")
         print(f"⚠ Error details: {traceback.format_exc()}")
         print("⚠ The API will still start, but discovery features won't work until credentials are configured.")
-        print(f"⚠ Credentials path: {os.getenv('GOOGLE_SHEETS_CREDENTIALS_PATH', 'not set')}")
+        creds_path = os.getenv('GOOGLE_SHEETS_CREDENTIALS_PATH', 'not set')
+        # Don't print full credentials if it's JSON content (security)
+        if creds_path and creds_path.strip().startswith('{'):
+            print(f"⚠ Credentials provided as JSON (length: {len(creds_path)} chars)")
+        else:
+            print(f"⚠ Credentials path: {creds_path}")
         discovery_app = None
     
     yield
@@ -211,7 +216,12 @@ async def start_discovery(request: DiscoveryRequest):
     if not discovery_app:
         error_msg = "Discovery app not initialized. Please check credentials.json and Google Sheets configuration."
         print(f"⚠ {error_msg}")
-        print(f"⚠ Credentials path: {os.getenv('GOOGLE_SHEETS_CREDENTIALS_PATH', 'not set')}")
+        creds_path = os.getenv('GOOGLE_SHEETS_CREDENTIALS_PATH', 'not set')
+        # Don't print full credentials if it's JSON content (security)
+        if creds_path and creds_path.strip().startswith('{'):
+            print(f"⚠ Credentials provided as JSON (length: {len(creds_path)} chars)")
+        else:
+            print(f"⚠ Credentials path: {creds_path}")
         raise HTTPException(status_code=503, detail=error_msg)
     
     if discovery_app.is_running:
