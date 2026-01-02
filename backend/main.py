@@ -2,7 +2,7 @@
 FastAPI backend for Lead Discovery System
 Provides REST API for the Next.js frontend
 """
-from fastapi import FastAPI, HTTPException, APIRouter, APIRouter
+from fastapi import FastAPI, HTTPException, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -98,6 +98,27 @@ app = FastAPI(title="Lead Discovery API", version="1.0.0", lifespan=lifespan)
 # Create API router to ensure API routes are matched before catch-all
 api_router = APIRouter(prefix="/api")
 
+# Add middleware to log all requests for debugging
+@app.middleware("http")
+async def log_requests(request, call_next):
+    print(f"📥 Request: {request.method} {request.url.path}")
+    try:
+        response = await call_next(request)
+        print(f"📤 Response: {request.method} {request.url.path} -> {response.status_code}")
+        return response
+    except Exception as e:
+        import traceback
+        print(f"⚠⚠⚠ Exception in middleware for {request.method} {request.url.path}: {str(e)}")
+        print(f"⚠ Traceback: {traceback.format_exc()}")
+        # For API routes, return JSON error instead of raising
+        if request.url.path.startswith("/api/"):
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=500,
+                content={"error": str(e), "path": request.url.path}
+            )
+        raise
+
 # CORS middleware for Next.js frontend
 # In unified deployment, frontend is served from same origin, so allow all
 # For development, allow localhost origins
@@ -141,8 +162,33 @@ async def test():
 @api_router.get("/status")
 async def get_status():
     """Get current discovery status"""
-    if not discovery_app:
-        # Return a status indicating the app is not initialized
+    try:
+        print(f"✓ /api/status called - discovery_app is {'initialized' if discovery_app else 'None'}")
+        if not discovery_app:
+            # Return a status indicating the app is not initialized
+            # This should return 200 OK with initialized: false, NOT 503
+            status_response = {
+                "is_running": False,
+                "run_id": None,
+                "current_country": None,
+                "current_city": None,
+                "current_category": None,
+                "initialized": False,
+                "error": "Discovery app not initialized. Please check credentials.json and Google Sheets configuration."
+            }
+            print(f"✓ Returning status: {status_response}")
+            return status_response
+        
+        status = discovery_app.get_status()
+        status["initialized"] = True
+        print(f"✓ Returning status: {status}")
+        return status
+    except Exception as e:
+        import traceback
+        error_msg = f"Error in get_status: {str(e)}"
+        print(f"⚠ {error_msg}")
+        print(f"⚠ Traceback: {traceback.format_exc()}")
+        # Return error status, not raise 503
         return {
             "is_running": False,
             "run_id": None,
@@ -150,12 +196,8 @@ async def get_status():
             "current_city": None,
             "current_category": None,
             "initialized": False,
-            "error": "Discovery app not initialized. Please check credentials.json and Google Sheets configuration."
+            "error": error_msg
         }
-    
-    status = discovery_app.get_status()
-    status["initialized"] = True
-    return status
 
 
 @api_router.post("/start")
