@@ -205,8 +205,14 @@ async def start_discovery(request: DiscoveryRequest):
     """Start lead discovery"""
     global current_leads
     
+    print(f"📥 /api/start called - country: {request.country}, city: {request.city}, categories: {request.categories}")
+    print(f"📥 discovery_app is {'initialized' if discovery_app else 'None'}")
+    
     if not discovery_app:
-        raise HTTPException(status_code=503, detail="Discovery app not initialized. Please check credentials.json and Google Sheets configuration.")
+        error_msg = "Discovery app not initialized. Please check credentials.json and Google Sheets configuration."
+        print(f"⚠ {error_msg}")
+        print(f"⚠ Credentials path: {os.getenv('GOOGLE_SHEETS_CREDENTIALS_PATH', 'not set')}")
+        raise HTTPException(status_code=503, detail=error_msg)
     
     if discovery_app.is_running:
         raise HTTPException(status_code=400, detail="Discovery already running")
@@ -224,9 +230,14 @@ async def start_discovery(request: DiscoveryRequest):
         )
         thread.start()
         
+        print(f"✓ Discovery started successfully")
         return {"success": True, "message": "Discovery started"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        error_msg = f"Failed to start discovery: {str(e)}"
+        print(f"⚠ {error_msg}")
+        print(f"⚠ Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=error_msg)
 
 
 @api_router.post("/stop")
