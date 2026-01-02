@@ -17,10 +17,41 @@ export function DiscoveryPanel({ status, onStart, onStop }: DiscoveryPanelProps)
   const [city, setCity] = useState('')
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [searchTerm, setSearchTerm] = useState('')
+  const [loadingCountries, setLoadingCountries] = useState(true)
+  const [countriesError, setCountriesError] = useState<string | null>(null)
 
   useEffect(() => {
-    apiClient.getCountries().then(setCountries).catch(console.error)
-    apiClient.getCategories().then(setCategories).catch(console.error)
+    setLoadingCountries(true)
+    setCountriesError(null)
+    apiClient.getCountries()
+      .then((data) => {
+        console.log('Countries loaded:', data, 'Count:', data?.length)
+        if (Array.isArray(data) && data.length > 0) {
+          setCountries(data)
+        } else {
+          console.warn('Countries API returned empty or invalid data:', data)
+          setCountriesError('No countries available')
+          setCountries([])
+        }
+        setLoadingCountries(false)
+      })
+      .catch((error) => {
+        console.error('Failed to load countries:', error)
+        console.error('Error details:', error.response?.data || error.message)
+        setCountriesError(error.response?.data?.detail || error.message || 'Failed to load countries')
+        setCountries([])
+        setLoadingCountries(false)
+      })
+    
+    apiClient.getCategories()
+      .then((data) => {
+        console.log('Categories loaded:', data)
+        setCategories(data)
+      })
+      .catch((error) => {
+        console.error('Failed to load categories:', error)
+        setCategories([])
+      })
   }, [])
 
   const filteredCategories = categories.filter(cat =>
@@ -63,14 +94,24 @@ export function DiscoveryPanel({ status, onStart, onStop }: DiscoveryPanelProps)
               <select
                 value={selectedCountry}
                 onChange={(e) => setSelectedCountry(e.target.value)}
-                disabled={status.is_running}
+                disabled={status.is_running || loadingCountries}
                 className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
               >
-                <option value="">Select a country...</option>
+                <option value="">
+                  {loadingCountries ? 'Loading countries...' : countriesError ? `Error: ${countriesError}` : 'Select a country...'}
+                </option>
+                {countries.length === 0 && !loadingCountries && !countriesError && (
+                  <option value="" disabled>No countries available</option>
+                )}
                 {countries.map(country => (
                   <option key={country} value={country}>{country}</option>
                 ))}
               </select>
+              {countriesError && (
+                <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+                  {countriesError}
+                </p>
+              )}
             </div>
 
             <div>

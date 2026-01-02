@@ -2,7 +2,7 @@
 FastAPI backend for Lead Discovery System
 Provides REST API for the Next.js frontend
 """
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, APIRouter, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -26,22 +26,33 @@ except Exception as e:
     print(f"⚠ Warning: Failed to import config: {e}")
     config = None
 
+# Import countries directly (doesn't require credentials)
+try:
+    from countries import list_all_countries
+    print(f"✓ Countries module imported successfully")
+    # Test that it works
+    test_countries = list_all_countries()
+    print(f"✓ Found {len(test_countries)} countries")
+except Exception as e:
+    import traceback
+    print(f"⚠ Warning: Failed to import countries: {e}")
+    print(f"⚠ Traceback: {traceback.format_exc()}")
+    list_all_countries = None
+
 # Lazy import of LeadDiscoveryApp - import only when needed to avoid startup failures
 # This allows the FastAPI app to start even if main.py has import issues
 LeadDiscoveryApp = None
-list_all_countries = None
 
 def _lazy_import_discovery_app():
     """Lazy import of LeadDiscoveryApp and related modules"""
-    global LeadDiscoveryApp, list_all_countries
+    global LeadDiscoveryApp
     if LeadDiscoveryApp is None:
         try:
             from main import LeadDiscoveryApp
-            from countries import list_all_countries
         except Exception as e:
             print(f"⚠ Error: Failed to import discovery modules: {e}")
             raise
-    return LeadDiscoveryApp, list_all_countries
+    return LeadDiscoveryApp
 
 # Global app instance
 discovery_app = None
@@ -65,12 +76,15 @@ async def lifespan(app: FastAPI):
     # Startup
     global discovery_app
     try:
-        LeadDiscoveryAppClass, _ = _lazy_import_discovery_app()
+        LeadDiscoveryAppClass = _lazy_import_discovery_app()
         discovery_app = LeadDiscoveryAppClass(lead_callback=on_lead_found)
         print("✓ Discovery app initialized successfully")
     except Exception as e:
+        import traceback
         print(f"⚠ Warning: Failed to initialize discovery app: {e}")
+        print(f"⚠ Error details: {traceback.format_exc()}")
         print("⚠ The API will still start, but discovery features won't work until credentials are configured.")
+        print(f"⚠ Credentials path: {os.getenv('GOOGLE_SHEETS_CREDENTIALS_PATH', 'not set')}")
         discovery_app = None
     
     yield
@@ -80,6 +94,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Lead Discovery API", version="1.0.0", lifespan=lifespan)
+
+# Create API router to ensure API routes are matched before catch-all
+api_router = APIRouter(prefix="/api")
 
 # CORS middleware for Next.js frontend
 # In unified deployment, frontend is served from same origin, so allow all
@@ -111,22 +128,37 @@ if os.path.exists(frontend_path):
         app.mount("/_next", StaticFiles(directory=static_path), name="next-static")
 
 
-@app.get("/api")
+@api_router.get("")
 async def root():
     return {"message": "Lead Discovery API", "version": "1.0.0"}
 
+@api_router.get("/test")
+async def test():
+    """Test endpoint to verify API routes work"""
+    return {"status": "ok", "message": "API routes are working"}
 
-@app.get("/api/status")
+
+@api_router.get("/status")
 async def get_status():
     """Get current discovery status"""
     if not discovery_app:
-        raise HTTPException(status_code=503, detail="Discovery app not initialized. Please check credentials.json and Google Sheets configuration.")
+        # Return a status indicating the app is not initialized
+        return {
+            "is_running": False,
+            "run_id": None,
+            "current_country": None,
+            "current_city": None,
+            "current_category": None,
+            "initialized": False,
+            "error": "Discovery app not initialized. Please check credentials.json and Google Sheets configuration."
+        }
     
     status = discovery_app.get_status()
+    status["initialized"] = True
     return status
 
 
-@app.post("/api/start")
+@api_router.post("/start")
 async def start_discovery(request: DiscoveryRequest):
     """Start lead discovery"""
     global current_leads
@@ -155,7 +187,7 @@ async def start_discovery(request: DiscoveryRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/stop")
+@api_router.post("/stop")
 async def stop_discovery():
     """Stop lead discovery"""
     if not discovery_app:
@@ -168,7 +200,7 @@ async def stop_discovery():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/leads")
+@api_router.get("/leads")
 async def get_leads(run_id: Optional[str] = None):
     """Get discovered leads"""
     # Filter by run_id if provided
@@ -178,17 +210,45 @@ async def get_leads(run_id: Optional[str] = None):
     return current_leads
 
 
-@app.get("/api/countries")
+@api_router.get("/countries")
 async def get_countries():
     """Get list of all supported countries"""
+    global list_all_countries
+    
+    if list_all_countries is None:
+        # Try to import again
+        try:
+            from countries import list_all_countries as _list_all_countries
+            list_all_countries = _list_all_countries
+            print("✓ Countries module imported successfully on demand")
+        except Exception as e:
+            import traceback
+            error_msg = f"Countries module not loaded. Import error: {str(e)}"
+            print(f"⚠ {error_msg}")
+            print(f"⚠ Traceback: {traceback.format_exc()}")
+            raise HTTPException(status_code=500, detail=error_msg)
+    
     try:
-        _, list_all_countries_func = _lazy_import_discovery_app()
-        return list_all_countries_func()
+        countries = list_all_countries()
+        if not countries or len(countries) == 0:
+            print(f"⚠ Warning: list_all_countries() returned empty list. COUNTRIES dict might be empty.")
+            # Try to check COUNTRIES directly
+            try:
+                import countries as countries_module
+                print(f"⚠ COUNTRIES dict size: {len(countries_module.COUNTRIES) if hasattr(countries_module, 'COUNTRIES') else 'NOT FOUND'}")
+            except:
+                pass
+        print(f"✓ Returning {len(countries)} countries")
+        return countries
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to load countries: {str(e)}")
+        import traceback
+        error_msg = f"Failed to load countries: {str(e)}"
+        print(f"⚠ Error in get_countries: {error_msg}")
+        print(f"⚠ Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=error_msg)
 
 
-@app.get("/api/categories")
+@api_router.get("/categories")
 async def get_categories():
     """Get list of all supported categories"""
     if config is None:
@@ -196,7 +256,7 @@ async def get_categories():
     return config.DEFAULT_CATEGORIES
 
 
-@app.get("/api/stats")
+@api_router.get("/stats")
 async def get_stats():
     """Get statistics about discovered leads"""
     if not current_leads:
@@ -231,14 +291,46 @@ async def get_stats():
     }
 
 
+# Include API router AFTER all routes are defined but BEFORE catch-all route
+# This ensures API routes are matched before the catch-all route
+app.include_router(api_router)
+
+# Debug: Log registered routes on startup
+@app.on_event("startup")
+async def log_routes():
+    print("=" * 60)
+    print("Registered Routes:")
+    for route in app.routes:
+        if hasattr(route, 'path'):
+            methods = ', '.join(sorted(route.methods)) if hasattr(route, 'methods') and route.methods else 'N/A'
+            path = route.path
+            print(f"  {methods:15} {path}")
+    print("=" * 60)
+    print(f"Total routes: {len(app.routes)}")
+    print(f"API router included: {api_router in [r for r in app.routes if hasattr(r, 'routes')]}")
+    print("=" * 60)
+
+
 # Serve frontend for all non-API routes (SPA routing)
 # This must be LAST so API routes are matched first
 # Next.js export mode creates index.html in the frontend directory
+# IMPORTANT: This catch-all must NOT match /api/* routes - FastAPI should match specific routes first
 if os.path.exists(frontend_path):
+    # Use a more specific path pattern that excludes /api/*
+    # FastAPI will match this only if no other route matches
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
-        # Don't serve API routes or _next as frontend (shouldn't reach here due to route order, but safety check)
-        if full_path.startswith("api") or full_path.startswith("_next"):
+        # CRITICAL: This should NEVER be reached for /api/* paths
+        # If we reach here, it means the router routes didn't match (BUG!)
+        if full_path.startswith("api/") or full_path == "api":
+            print(f"⚠⚠⚠ ERROR: Catch-all matched API path '/{full_path}' - Router failed!")
+            print(f"⚠ This means /api/* routes are not working. Check router registration.")
+            raise HTTPException(
+                status_code=404, 
+                detail=f"API route '/api/{full_path.split('/', 1)[1] if '/' in full_path else ''}' not found. Router may not be registered."
+            )
+        
+        if full_path.startswith("_next/"):
             raise HTTPException(status_code=404)
         
         # Try to serve the requested file
