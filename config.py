@@ -56,137 +56,268 @@ EXCLUDED_TERMS = [
 # Target Categories (default - can be customized)
 # Focus on appointment-based services and businesses that benefit from automation
 DEFAULT_CATEGORIES = [
-    # Healthcare & Wellness (appointment-heavy)
+    # =========================
+    # Healthcare & Wellness
+    # =========================
     "dental clinic",
     "medical clinic",
     "doctor office",
+    "private hospital",
     "veterinary clinic",
     "physiotherapy clinic",
     "chiropractic clinic",
-    "massage therapy",
-    "acupuncture clinic",
+    "orthopedic clinic",
+    "skin clinic",
+    "dermatology clinic",
+    "cosmetic clinic",
+    "aesthetic clinic",
+    "fertility clinic",
+    "ivf clinic",
+    "diagnostic center",
+    "pathology lab",
+    "radiology center",
+    "imaging center",
+    "mental health clinic",
     "psychology clinic",
     "counseling center",
-    
-    # Beauty & Personal Care (appointment-based)
+    "psychiatry clinic",
+    "nutritionist",
+    "dietitian",
+    "ayurveda clinic",
+    "homeopathy clinic",
+    "naturopathy clinic",
+
+    # =========================
+    # Beauty & Personal Care
+    # =========================
     "beauty salon",
     "hair salon",
     "barber shop",
     "nail salon",
     "spa",
+    "massage spa",
+    "wellness spa",
     "esthetician",
+    "makeup studio",
+    "bridal makeup artist",
     "tattoo parlor",
     "piercing studio",
     "laser hair removal",
-    "cosmetic clinic",
-    
-    # Fitness & Sports (membership + appointments)
+    "skin care center",
+
+    # =========================
+    # Fitness, Sports & Lifestyle
+    # =========================
     "fitness center",
     "gym",
+    "crossfit gym",
     "yoga studio",
     "pilates studio",
     "martial arts school",
+    "karate school",
+    "taekwondo academy",
     "dance studio",
+    "zumba studio",
     "personal trainer",
-    "swimming pool",
-    "tennis club",
+    "swimming academy",
+    "tennis academy",
+    "badminton academy",
+    "sports academy",
     "golf club",
-    
-    # Professional Services (appointment-based)
+
+    # =========================
+    # Professional & Financial Services
+    # =========================
     "law firm",
+    "law office",
     "accounting firm",
+    "chartered accountant",
+    "bookkeeping service",
     "consulting firm",
+    "business consultant",
     "financial advisor",
+    "investment advisor",
     "insurance agency",
+    "tax consultant",
+    "audit firm",
+    "company registration service",
+
+    # =========================
+    # Real Estate & Property
+    # =========================
     "real estate agency",
     "real estate agent",
-    "mortgage broker",
-    "tax preparer",
-    
-    # Education & Training (scheduling needed)
+    "property consultant",
+    "property dealer",
+    "real estate broker",
+    "commercial real estate",
+    "property management company",
+    "rental agency",
+    "vacation rental agency",
+
+    # =========================
+    # Education & Training
+    # =========================
     "coaching institute",
     "tutoring center",
+    "private tutor",
     "driving school",
     "music school",
+    "dance academy",
     "language school",
-    "art school",
-    "training center",
-    "bootcamp",
-    
-    # Home Services (appointment-based)
+    "english academy",
+    "computer training institute",
+    "coding bootcamp",
+    "it training center",
+    "exam coaching center",
+    "study abroad consultant",
+    "career counseling center",
+
+    # =========================
+    # Home & Local Services
+    # =========================
     "plumber",
     "electrician",
     "hvac contractor",
+    "air conditioning service",
     "handyman",
     "carpenter",
-    "roofer",
     "painter",
+    "interior designer",
+    "home renovation",
+    "contractor",
+    "construction company",
+    "roofer",
+    "waterproofing service",
     "landscaping service",
     "lawn care service",
     "cleaning service",
+    "house cleaning",
+    "office cleaning",
+    "pest control service",
     "moving company",
-    
-    # Automotive (appointment-based)
+    "packers and movers",
+
+    # =========================
+    # Automotive Services
+    # =========================
     "auto repair shop",
     "car mechanic",
+    "auto service center",
     "auto body shop",
+    "car detailing",
     "car wash",
     "tire shop",
-    "auto detailing",
-    
-    # Food & Hospitality (reservations/bookings)
+    "battery service",
+    "vehicle inspection center",
+    "motorcycle repair shop",
+
+    # =========================
+    # Food, Hospitality & Travel
+    # =========================
     "restaurant",
+    "fine dining restaurant",
     "cafe",
-    "catering service",
-    "food truck",
+    "coffee shop",
     "bakery",
     "pizzeria",
-    
-    # Photography & Events (booking-based)
+    "cloud kitchen",
+    "catering service",
+    "food truck",
+    "hotel",
+    "boutique hotel",
+    "resort",
+    "guest house",
+    "hostel",
+    "travel agency",
+    "tour operator",
+    "tourism company",
+
+    # =========================
+    # Events, Media & Creative
+    # =========================
     "photography studio",
     "wedding photographer",
+    "videography service",
     "event planner",
-    "caterer",
-    "florist",
+    "wedding planner",
+    "event management company",
     "dj service",
-    "party rental",
-    
-    # Retail & E-commerce (online presence important)
-    "e-commerce store",
+    "sound system rental",
+    "party rental service",
+    "florist",
+    "decoration service",
+
+    # =========================
+    # Retail, D2C & Commerce
+    # =========================
     "retail store",
     "boutique",
+    "clothing store",
+    "fashion boutique",
+    "shoe store",
     "jewelry store",
+    "optical store",
     "furniture store",
+    "electronics store",
+    "mobile phone shop",
+    "computer store",
     "pet store",
-    
-    # Other Service Businesses
-    "dry cleaner",
-    "laundromat",
-    "tailor",
-    "shoe repair",
-    "locksmith",
-    "appliance repair",
+    "organic food store",
+    "grocery store",
+    "e-commerce store",
+    "online store",
+
+    # =========================
+    # Repair & Technical Services
+    # =========================
     "computer repair",
+    "laptop repair",
     "phone repair",
-    
-    # Creative & Media (project-based)
+    "mobile repair",
+    "appliance repair",
+    "ac repair service",
+    "refrigerator repair",
+    "washing machine repair",
+    "it service provider",
+    "managed it services",
+
+    # =========================
+    # Digital, Tech & Agencies
+    # =========================
     "digital marketing agency",
+    "seo agency",
+    "social media agency",
+    "performance marketing agency",
     "web design agency",
-    "graphic design studio",
-    "advertising agency",
-    "video production",
-    "printing service",
-    
-    # Manufacturing & Trade
+    "web development company",
+    "software development company",
+    "it consulting company",
+    "automation services",
+    "ai consulting company",
+
+    # =========================
+    # Manufacturing & B2B
+    # =========================
     "small manufacturer",
-    "welding shop",
-    "machine shop",
+    "manufacturing company",
     "fabrication shop",
-    
-    # Pet Services (appointment-based)
+    "machine shop",
+    "welding shop",
+    "cnc machining",
+    "industrial supplier",
+    "packaging company",
+    "printing company",
+
+    # =========================
+    # Pet Services
+    # =========================
     "pet grooming",
+    "dog grooming",
     "dog daycare",
     "pet boarding",
     "pet training",
+    "pet clinic",
+    "animal hospital",
 ]
 
