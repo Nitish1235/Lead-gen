@@ -31,7 +31,7 @@ export function LeadsList({ leads, status }: LeadsListProps) {
   }
 
   const exportToCSV = () => {
-    const headers = ['Business Name', 'Category', 'City', 'Country', 'Phone', 'Email', 'Website', 'Address', 'Rating', 'Review Count', 'Lead Score', 'Value Justification']
+    const headers = ['Business Name', 'Category', 'City', 'Country', 'Phone', 'Email', 'Website', 'Address', 'Rating', 'Review Count', 'Lead Score']
     const rows = filteredLeads.map(lead => [
       lead.business_name,
       lead.category,
@@ -43,8 +43,7 @@ export function LeadsList({ leads, status }: LeadsListProps) {
       lead.address,
       lead.rating,
       lead.review_count,
-      lead.lead_score,
-      lead.value_justification
+      lead.lead_score
     ])
     
     const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n')
@@ -207,22 +206,6 @@ export function LeadsList({ leads, status }: LeadsListProps) {
                       <MapPin className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
                       {lead.address}
                     </p>
-                  </div>
-                )}
-
-                {lead.value_justification && (
-                  <div className="mt-4">
-                    <button
-                      onClick={() => setExpandedLead(expandedLead === lead.business_name ? null : lead.business_name)}
-                      className="text-sm text-primary-600 dark:text-primary-400 hover:underline font-medium"
-                    >
-                      {expandedLead === lead.business_name ? 'Hide' : 'Show'} Value Justification
-                    </button>
-                    {expandedLead === lead.business_name && (
-                      <p className="mt-2 p-3 bg-primary-50 dark:bg-primary-900/20 rounded-lg text-sm text-gray-700 dark:text-gray-300">
-                        {lead.value_justification}
-                      </p>
-                    )}
                   </div>
                 )}
               </div>

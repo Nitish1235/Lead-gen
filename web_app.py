@@ -376,7 +376,6 @@ with tab2:
                     st.write(f"**Email:** {lead.get('email', 'N/A')}")
                     if lead.get('website'):
                         st.write(f"**Website:** [{lead.get('website')}]({lead.get('website')})")
-                    st.write(f"**Justification:** {lead.get('value_justification', 'N/A')}")
         
         if len(filtered_leads) > 50:
             st.info(f"Showing first 50 leads. Total: {len(filtered_leads)}")
@@ -448,7 +447,6 @@ with tab4:
     - 🌍 Country-aware discovery (20+ countries)
     - 🎯 100+ pre-configured business categories
     - 📊 Intelligent lead scoring
-    - 📝 Auto-generated value justifications
     - 📈 Google Sheets integration
     - 🌐 Website quality analysis
     

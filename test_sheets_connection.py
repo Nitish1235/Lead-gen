@@ -94,7 +94,6 @@ def test_sheets_connection():
             "rating": 4.5,
             "review_count": 100,
             "lead_score": 85,
-            "value_justification": "This is a test lead to verify Google Sheets connection",
             "run_id": "TEST-001",
             "timestamp": datetime.now().isoformat(),
         }

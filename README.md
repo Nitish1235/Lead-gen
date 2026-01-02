@@ -14,7 +14,6 @@ A personal, high-precision B2B lead intelligence system for discovering business
 - 🌍 **Country-aware discovery**: Search businesses in any country with proper Google domain and locale handling
 - 🔍 **Intelligent search**: Focuses on Google Maps listings with phone numbers, addresses, and weak websites
 - 📊 **Lead scoring**: Automatic scoring based on quality signals (rating, website quality, contact info)
-- 📝 **Value justification**: Auto-generated explanations of why each lead is valuable
 - 🎯 **Target categories**: 100+ pre-configured categories (salons, barbers, medical clinics, fitness centers, home services, and more)
 - 🚫 **Smart filtering**: Excludes aggregators, job boards, large chains, government entities
 - 📈 **Google Sheets storage**: All leads saved to Google Sheets (append-only, human-readable)
@@ -213,7 +212,6 @@ Leads are saved with the following columns:
 - Rating
 - Review Count
 - Lead Score
-- Value Justification
 - Run ID
 - Timestamp
 

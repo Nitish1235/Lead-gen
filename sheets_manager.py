@@ -101,7 +101,7 @@ class SheetsManager:
                     "Country", "City", "Category", "Business Name",
                     "Phone", "Email", "Website", "Address",
                     "Rating", "Review Count", "Lead Score",
-                    "Value Justification", "Run ID", "Timestamp"
+                    "Run ID", "Timestamp"
                 ]
                 self.service.spreadsheets().values().update(
                     spreadsheetId=self.spreadsheet_id,
@@ -138,7 +138,6 @@ class SheetsManager:
                 lead_data.get("rating", ""),
                 lead_data.get("review_count", ""),
                 lead_data.get("lead_score", ""),
-                lead_data.get("value_justification", ""),
                 lead_data.get("run_id", ""),
                 lead_data.get("timestamp", ""),
             ]
@@ -187,7 +186,6 @@ class SheetsManager:
                     lead_data.get("rating", ""),
                     lead_data.get("review_count", ""),
                     lead_data.get("lead_score", ""),
-                    lead_data.get("value_justification", ""),
                     lead_data.get("run_id", ""),
                     lead_data.get("timestamp", ""),
                 ]

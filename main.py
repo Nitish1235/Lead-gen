@@ -270,17 +270,6 @@ class LeadDiscoveryApp:
                 website_analysis=website_analysis
             )
             
-            # Generate justification
-            justification = self.lead_scorer.generate_justification(
-                business_name=name,
-                has_phone=bool(phone),
-                has_email=bool(email),
-                rating=rating,
-                review_count=review_count,
-                website_analysis=website_analysis,
-                category=category
-            )
-            
             # Build lead dictionary
             lead = {
                 "country": country,
@@ -294,7 +283,6 @@ class LeadDiscoveryApp:
                 "rating": rating if rating else "",
                 "review_count": review_count if review_count else 0,
                 "lead_score": score,
-                "value_justification": justification,
                 "run_id": self.run_id,
                 "timestamp": datetime.now().isoformat(),
             }
