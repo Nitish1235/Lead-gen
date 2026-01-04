@@ -232,11 +232,13 @@ async def start_discovery(request: DiscoveryRequest):
         current_leads.clear()
         
         # Start discovery (non-blocking - runs in background)
+        # Use daemon=False to ensure discovery continues even if client disconnects
+        # The discovery should run independently of browser/client connections
         import threading
         thread = threading.Thread(
             target=discovery_app.start,
             args=(request.country, request.city, request.categories),
-            daemon=True
+            daemon=False  # Changed to False so discovery continues after browser closes
         )
         thread.start()
         
@@ -317,6 +319,31 @@ async def get_categories():
     if config is None:
         raise HTTPException(status_code=500, detail="Config not loaded")
     return config.DEFAULT_CATEGORIES
+
+
+@api_router.get("/cities")
+async def get_cities(country: Optional[str] = None):
+    """Get cities for a country, organized by tier"""
+    try:
+        from countries import get_cities_by_tier
+        
+        if not country:
+            raise HTTPException(status_code=400, detail="Country parameter is required")
+        
+        cities_by_tier = get_cities_by_tier(country)
+        
+        if not cities_by_tier or (not cities_by_tier.get("Tier 1") and not cities_by_tier.get("Tier 2") and not cities_by_tier.get("Tier 3")):
+            raise HTTPException(status_code=404, detail=f"No cities found for country: {country}")
+        
+        return cities_by_tier
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        error_msg = f"Failed to load cities: {str(e)}"
+        print(f"⚠ Error in get_cities: {error_msg}")
+        print(f"⚠ Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=error_msg)
 
 
 @api_router.get("/stats")

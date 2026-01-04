@@ -132,14 +132,23 @@ export const apiClient = {
     return response.data
   },
 
-  async getStats(): Promise<{
-    total_leads: number
-    avg_score: number
-    by_category: Record<string, number>
-    by_country: Record<string, number>
-  }> {
-    const response = await api.get('/stats')
-    return response.data
-  },
-}
+      async getStats(): Promise<{
+        total_leads: number
+        avg_score: number
+        by_category: Record<string, number>
+        by_country: Record<string, number>
+      }> {
+        const response = await api.get('/stats')
+        return response.data
+      },
+
+      async getCities(country: string): Promise<{
+        "Tier 1": string[]
+        "Tier 2": string[]
+        "Tier 3": string[]
+      }> {
+        const response = await api.get('/cities', { params: { country } })
+        return response.data
+      },
+    }
 
