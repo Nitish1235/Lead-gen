@@ -51,7 +51,7 @@ class SheetsManager:
                     creds_path,
                     scopes=[
                         'https://www.googleapis.com/auth/spreadsheets',
-                        'https://www.googleapis.com/auth/drive'  # Need Drive API to search/create spreadsheets
+                        'https://www.googleapis.com/auth/drive.file'  # Need Drive API to search/create spreadsheets
                     ]
                 )
                 self.service = build('sheets', 'v4', credentials=creds)
