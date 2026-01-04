@@ -194,10 +194,12 @@ class LeadDiscoveryApp:
                 lead = self._process_business_to_lead(business, country, city, category)
                 
                 if lead:
-                    # Check for duplicates
+                    # Check for duplicates (pass country and city for spreadsheet lookup)
                     is_duplicate = self.sheets_manager.check_duplicate(
                         lead.get("phone"),
-                        lead.get("website")
+                        lead.get("website"),
+                        country,
+                        city
                     )
                     
                     if not is_duplicate:
