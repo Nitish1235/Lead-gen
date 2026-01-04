@@ -18,9 +18,8 @@ class SheetsManager:
     def __init__(self):
         self.credentials = None
         self.service = None
-        self.drive_service = None  # Drive API service for searching/creating spreadsheets
-        self.worksheet_name = config.GOOGLE_SHEETS_WORKSHEET_NAME
-        self._spreadsheet_cache = {}  # Cache spreadsheet IDs by country-city
+        self.spreadsheet_id = config.GOOGLE_SHEETS_SPREADSHEET_ID
+        self._worksheet_cache = {}  # Cache worksheet names by country-city
         self._initialize_service()
     
     def _initialize_service(self):
@@ -50,172 +49,127 @@ class SheetsManager:
                 creds = service_account.Credentials.from_service_account_file(
                     creds_path,
                     scopes=[
-                        'https://www.googleapis.com/auth/spreadsheets',
-                        'https://www.googleapis.com/auth/drive.file'  # Need Drive API to search/create spreadsheets
+                        'https://www.googleapis.com/auth/spreadsheets'
                     ]
                 )
                 self.service = build('sheets', 'v4', credentials=creds)
-                self.drive_service = build('drive', 'v3', credentials=creds)
-                print(f"✓ Google Sheets & Drive services initialized from: {creds_path}")
+                print(f"✓ Google Sheets service initialized from: {creds_path}")
             else:
                 raise FileNotFoundError(
                     f"Credentials file not found: {creds_path}\n"
                     "Please download credentials.json from Google Cloud Console or set GOOGLE_SHEETS_CREDENTIALS_PATH"
                 )
+            
+            # Validate spreadsheet ID
+            if not self.spreadsheet_id:
+                raise ValueError(
+                    "GOOGLE_SHEETS_SPREADSHEET_ID is not set. "
+                    "Please create a Google Sheet and set the spreadsheet ID in config.py or .env"
+                )
+            
         except Exception as e:
             raise Exception(f"Failed to initialize Google Sheets service: {e}")
     
-    def _get_spreadsheet_name(self, country: str, city: str) -> str:
-        """Generate spreadsheet name in format: country-city"""
+    def _get_worksheet_name(self, country: str, city: str) -> str:
+        """Generate worksheet name in format: country-city"""
         # Clean name: remove special characters, replace spaces with hyphens
         clean_country = re.sub(r'[^\w\s-]', '', country).strip().replace(' ', '-')
         clean_city = re.sub(r'[^\w\s-]', '', city).strip().replace(' ', '-')
         return f"{clean_country}-{clean_city}"
     
-    def _find_spreadsheet_by_title(self, title: str) -> Optional[str]:
-        """
-        Search for spreadsheet by title using Google Drive API
-        
-        Args:
-            title: Spreadsheet title to search for
-            
-        Returns:
-            Spreadsheet ID if found, None otherwise
-        """
+    def _worksheet_exists(self, worksheet_name: str) -> bool:
+        """Check if worksheet exists in the spreadsheet"""
         try:
-            # Search for spreadsheets with matching title
-            # mimeType='application/vnd.google-apps.spreadsheet' filters to only Google Sheets
-            query = f"name='{title}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false"
-            
-            results = self.drive_service.files().list(
-                q=query,
-                spaces='drive',
-                fields='files(id, name)',
-                pageSize=10
+            spreadsheet = self.service.spreadsheets().get(
+                spreadsheetId=self.spreadsheet_id
             ).execute()
             
-            files = results.get('files', [])
-            
-            # Return first exact match
-            for file in files:
-                if file.get('name') == title:
-                    print(f"✓ Found existing spreadsheet: {title} (ID: {file.get('id')})")
-                    return file.get('id')
-            
-            return None
-            
+            for sheet in spreadsheet.get('sheets', []):
+                if sheet['properties']['title'] == worksheet_name:
+                    return True
+            return False
         except HttpError as e:
-            print(f"Error searching for spreadsheet '{title}': {e}")
-            return None
-        except Exception as e:
-            print(f"Unexpected error searching for spreadsheet: {e}")
-            return None
+            print(f"Error checking if worksheet exists: {e}")
+            return False
     
-    def _create_spreadsheet(self, title: str) -> Optional[str]:
+    def _create_worksheet(self, worksheet_name: str) -> bool:
         """
-        Create a new spreadsheet with given title
+        Create a new worksheet (tab) in the spreadsheet using addSheet request
         
         Args:
-            title: Spreadsheet title
+            worksheet_name: Name of the worksheet to create
             
         Returns:
-            Spreadsheet ID if successful, None otherwise
+            True if successful, False otherwise
         """
         try:
-            # Create spreadsheet using Sheets API
-            spreadsheet = {
-                'properties': {
-                    'title': title
-                },
-                'sheets': [{
-                    'properties': {
-                        'title': self.worksheet_name
+            # Use batchUpdate with addSheet request
+            request_body = {
+                'requests': [{
+                    'addSheet': {
+                        'properties': {
+                            'title': worksheet_name
+                        }
                     }
                 }]
             }
             
-            spreadsheet = self.service.spreadsheets().create(
-                body=spreadsheet,
-                fields='spreadsheetId'
+            self.service.spreadsheets().batchUpdate(
+                spreadsheetId=self.spreadsheet_id,
+                body=request_body
             ).execute()
             
-            spreadsheet_id = spreadsheet.get('spreadsheetId')
-            print(f"✓ Created new spreadsheet: {title} (ID: {spreadsheet_id})")
-            return spreadsheet_id
+            print(f"✓ Created worksheet '{worksheet_name}' in spreadsheet")
+            return True
             
         except HttpError as e:
-            print(f"Error creating spreadsheet '{title}': {e}")
-            return None
+            # If worksheet already exists, that's fine
+            if 'already exists' in str(e).lower() or e.resp.status == 400:
+                print(f"✓ Worksheet '{worksheet_name}' already exists")
+                return True
+            print(f"Error creating worksheet '{worksheet_name}': {e}")
+            return False
         except Exception as e:
-            print(f"Unexpected error creating spreadsheet: {e}")
-            return None
+            print(f"Unexpected error creating worksheet: {e}")
+            return False
     
-    def _get_or_create_spreadsheet(self, country: str, city: str) -> Optional[str]:
+    def _get_or_create_worksheet(self, country: str, city: str) -> Optional[str]:
         """
-        Get existing spreadsheet ID or create new one for country-city
+        Get existing worksheet name or create new one for country-city
         
         Args:
             country: Country name
             city: City name
             
         Returns:
-            Spreadsheet ID if successful, None otherwise
+            Worksheet name if successful, None otherwise
         """
         # Check cache first
         cache_key = f"{country}-{city}"
-        if cache_key in self._spreadsheet_cache:
-            return self._spreadsheet_cache[cache_key]
+        if cache_key in self._worksheet_cache:
+            return self._worksheet_cache[cache_key]
         
-        # Generate spreadsheet name
-        spreadsheet_name = self._get_spreadsheet_name(country, city)
+        # Generate worksheet name
+        worksheet_name = self._get_worksheet_name(country, city)
         
-        # Try to find existing spreadsheet
-        spreadsheet_id = self._find_spreadsheet_by_title(spreadsheet_name)
-        
-        # If not found, create new one
-        if not spreadsheet_id:
-            spreadsheet_id = self._create_spreadsheet(spreadsheet_name)
+        # Check if worksheet exists
+        if not self._worksheet_exists(worksheet_name):
+            # Create new worksheet
+            if not self._create_worksheet(worksheet_name):
+                return None
         
         # Cache the result
-        if spreadsheet_id:
-            self._spreadsheet_cache[cache_key] = spreadsheet_id
+        self._worksheet_cache[cache_key] = worksheet_name
         
-        return spreadsheet_id
+        return worksheet_name
     
-    def _ensure_headers(self, spreadsheet_id: str):
+    def _ensure_headers(self, worksheet_name: str):
         """Ensure worksheet exists with proper headers"""
         try:
-            # Check if worksheet exists
-            spreadsheet = self.service.spreadsheets().get(
-                spreadsheetId=spreadsheet_id
-            ).execute()
-            
-            worksheet_exists = False
-            for sheet in spreadsheet.get('sheets', []):
-                if sheet['properties']['title'] == self.worksheet_name:
-                    worksheet_exists = True
-                    break
-            
-            if not worksheet_exists:
-                # Create worksheet
-                self.service.spreadsheets().batchUpdate(
-                    spreadsheetId=spreadsheet_id,
-                    body={
-                        'requests': [{
-                            'addSheet': {
-                                'properties': {
-                                    'title': self.worksheet_name
-                                }
-                            }
-                        }]
-                    }
-                ).execute()
-                print(f"✓ Created worksheet '{self.worksheet_name}' in spreadsheet")
-            
             # Check if headers exist
             result = self.service.spreadsheets().values().get(
-                spreadsheetId=spreadsheet_id,
-                range=f"{self.worksheet_name}!A1:Z1"
+                spreadsheetId=self.spreadsheet_id,
+                range=f"{worksheet_name}!A1:Z1"
             ).execute()
             
             values = result.get('values', [])
@@ -228,19 +182,19 @@ class SheetsManager:
                     "Run ID", "Timestamp"
                 ]
                 self.service.spreadsheets().values().update(
-                    spreadsheetId=spreadsheet_id,
-                    range=f"{self.worksheet_name}!A1",
+                    spreadsheetId=self.spreadsheet_id,
+                    range=f"{worksheet_name}!A1",
                     valueInputOption='RAW',
                     body={'values': [headers]}
                 ).execute()
-                print(f"✓ Added headers to worksheet '{self.worksheet_name}'")
+                print(f"✓ Added headers to worksheet '{worksheet_name}'")
             
         except HttpError as e:
             raise Exception(f"Google Sheets API error: {e}")
     
     def append_lead(self, lead_data: Dict) -> bool:
         """
-        Append a single lead to the sheet (creates spreadsheet if needed)
+        Append a single lead to the appropriate worksheet (creates worksheet if needed)
         
         Args:
             lead_data: Dictionary with lead information (must contain 'country' and 'city')
@@ -256,14 +210,14 @@ class SheetsManager:
                 print(f"Error: Country and city are required in lead_data")
                 return False
             
-            # Get or create spreadsheet for this country-city
-            spreadsheet_id = self._get_or_create_spreadsheet(country, city)
-            if not spreadsheet_id:
-                print(f"Error: Failed to get or create spreadsheet for {country}-{city}")
+            # Get or create worksheet for this country-city
+            worksheet_name = self._get_or_create_worksheet(country, city)
+            if not worksheet_name:
+                print(f"Error: Failed to get or create worksheet for {country}-{city}")
                 return False
             
             # Ensure headers exist
-            self._ensure_headers(spreadsheet_id)
+            self._ensure_headers(worksheet_name)
             
             row = [
                 lead_data.get("country", ""),
@@ -282,8 +236,8 @@ class SheetsManager:
             ]
             
             self.service.spreadsheets().values().append(
-                spreadsheetId=spreadsheet_id,
-                range=f"{self.worksheet_name}!A:A",
+                spreadsheetId=self.spreadsheet_id,
+                range=f"{worksheet_name}!A:A",
                 valueInputOption='RAW',
                 insertDataOption='INSERT_ROWS',
                 body={'values': [row]}
@@ -310,7 +264,7 @@ class SheetsManager:
         if not leads:
             return 0
         
-        # Group leads by country-city (each gets its own spreadsheet)
+        # Group leads by country-city (each gets its own worksheet)
         success_count = 0
         for lead_data in leads:
             if self.append_lead(lead_data):
@@ -320,26 +274,26 @@ class SheetsManager:
     
     def check_duplicate(self, phone: Optional[str], website: Optional[str], country: str, city: str) -> bool:
         """
-        Check if a lead already exists in the country-city spreadsheet (by phone or website)
+        Check if a lead already exists in the country-city worksheet (by phone or website)
         
         Args:
             phone: Phone number to check
             website: Website URL to check
-            country: Country name (to identify spreadsheet)
-            city: City name (to identify spreadsheet)
+            country: Country name (to identify worksheet)
+            city: City name (to identify worksheet)
         
         Returns:
             True if duplicate exists, False otherwise
         """
         try:
-            # Get spreadsheet ID for this country-city
-            spreadsheet_id = self._get_or_create_spreadsheet(country, city)
-            if not spreadsheet_id:
-                return False  # If spreadsheet doesn't exist, no duplicates
+            # Get worksheet name for this country-city
+            worksheet_name = self._get_or_create_worksheet(country, city)
+            if not worksheet_name:
+                return False  # If worksheet doesn't exist, no duplicates
             
             result = self.service.spreadsheets().values().get(
-                spreadsheetId=spreadsheet_id,
-                range=f"{self.worksheet_name}!E:F"  # Phone and Website columns
+                spreadsheetId=self.spreadsheet_id,
+                range=f"{worksheet_name}!E:F"  # Phone and Website columns
             ).execute()
             
             values = result.get('values', [])
@@ -361,4 +315,3 @@ class SheetsManager:
         except Exception as e:
             print(f"Error checking duplicate: {e}")
             return False  # On error, assume not duplicate to be safe
-
