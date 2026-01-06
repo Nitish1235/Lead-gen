@@ -19,7 +19,8 @@ class SheetsManager:
         self.credentials = None
         self.service = None
         self.spreadsheet_id = config.GOOGLE_SHEETS_SPREADSHEET_ID
-        self._worksheet_cache = {}  # Cache worksheet names by country-city
+        self._worksheet_cache = {}  # Cache worksheet names by country
+        self._duplicate_cache = {}  # Cache duplicate check results (phone/website -> bool)
         self._initialize_service()
     
     def _initialize_service(self):
@@ -239,6 +240,14 @@ class SheetsManager:
                 body={'values': [row]}
             ).execute()
             
+            # Update cache after successful append to avoid duplicate checks
+            phone = lead_data.get("phone", "").strip()
+            website = lead_data.get("website", "").strip()
+            if phone:
+                self._duplicate_cache[f"{country}:phone:{phone}"] = True
+            if website:
+                self._duplicate_cache[f"{country}:website:{website}"] = True
+            
             return True
             
         except Exception as e:
@@ -271,6 +280,7 @@ class SheetsManager:
     def check_duplicate(self, phone: Optional[str], website: Optional[str], country: str, city: str) -> bool:
         """
         Check if a lead already exists in the country worksheet (by phone or website)
+        Uses caching to avoid repeated API calls for the same values.
         
         Args:
             phone: Phone number to check
@@ -282,6 +292,15 @@ class SheetsManager:
             True if duplicate exists, False otherwise
         """
         try:
+            # Check cache first (fast lookup)
+            phone_key = f"{country}:phone:{phone}" if phone and phone.strip() else None
+            website_key = f"{country}:website:{website}" if website and website.strip() else None
+            
+            if phone_key and phone_key in self._duplicate_cache:
+                return self._duplicate_cache[phone_key]
+            if website_key and website_key in self._duplicate_cache:
+                return self._duplicate_cache[website_key]
+            
             # Get worksheet name for this country (country-wise sheets)
             worksheet_name = self._get_or_create_worksheet(country)
             if not worksheet_name:
@@ -296,17 +315,47 @@ class SheetsManager:
             if len(values) <= 1:  # Only headers or empty
                 return False
             
+            # Build cache of existing phones/websites from this call
+            existing_phones = set()
+            existing_websites = set()
+            
             # Skip header row
             for row in values[1:]:
                 existing_phone = row[0] if len(row) > 0 else ""
                 existing_website = row[1] if len(row) > 1 else ""
                 
-                if phone and phone.strip() and existing_phone == phone:
-                    return True
-                if website and website.strip() and existing_website == website:
-                    return True
+                if existing_phone and existing_phone.strip():
+                    existing_phones.add(existing_phone.strip())
+                if existing_website and existing_website.strip():
+                    existing_websites.add(existing_website.strip())
             
-            return False
+            # Check if current lead is duplicate
+            is_duplicate = False
+            if phone and phone.strip():
+                phone_clean = phone.strip()
+                if phone_clean in existing_phones:
+                    is_duplicate = True
+                # Cache result
+                if phone_key:
+                    self._duplicate_cache[phone_key] = is_duplicate
+            
+            if not is_duplicate and website and website.strip():
+                website_clean = website.strip()
+                if website_clean in existing_websites:
+                    is_duplicate = True
+                # Cache result
+                if website_key:
+                    self._duplicate_cache[website_key] = is_duplicate
+            
+            # Cache all existing phones/websites to avoid future API calls
+            for existing_phone in existing_phones:
+                key = f"{country}:phone:{existing_phone}"
+                self._duplicate_cache[key] = True
+            for existing_website in existing_websites:
+                key = f"{country}:website:{existing_website}"
+                self._duplicate_cache[key] = True
+            
+            return is_duplicate
             
         except Exception as e:
             print(f"Error checking duplicate: {e}")

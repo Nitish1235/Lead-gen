@@ -15,8 +15,8 @@ GOOGLE_SHEETS_WORKSHEET_NAME = os.getenv("GOOGLE_SHEETS_WORKSHEET_NAME", "Leads"
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
 
 # Execution Settings
-DEFAULT_DELAY_BETWEEN_REQUESTS = 3  # seconds (human-like delay)
-DEFAULT_DELAY_BETWEEN_SEARCHES = 5  # seconds between different searches
+DEFAULT_DELAY_BETWEEN_REQUESTS = 1  # seconds (reduced for faster processing)
+DEFAULT_DELAY_BETWEEN_SEARCHES = 2  # seconds between different searches (reduced)
 MAX_LONG_RUNNING_HOURS = 24
 MAX_RESULTS_PER_CATEGORY = 50  # Safety limit per category
 
