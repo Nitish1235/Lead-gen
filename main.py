@@ -33,19 +33,10 @@ class LeadDiscoveryApp:
         self.current_category = None
         self.lead_callback = lead_callback  # Callback function for when leads are found
         
-        # Register signal handlers for graceful shutdown
-        try:
-            signal.signal(signal.SIGINT, self._signal_handler)
-            signal.signal(signal.SIGTERM, self._signal_handler)
-        except (ValueError, OSError):
-            # Signal handlers don't work in some environments (e.g., Streamlit)
-            pass
-    
-    def _signal_handler(self, signum, frame):
-        """Handle interrupt signals"""
-        print("\n\nStop signal received. Stopping gracefully...")
-        self.should_stop = True
-        self.is_running = False
+        # Note: Signal handlers are NOT registered here
+        # This allows the discovery process to continue running even if the web server
+        # receives shutdown signals. Discovery will only stop when explicitly requested
+        # via the stop() method or API endpoint.
     
     def start(
         self,
@@ -143,16 +134,20 @@ class LeadDiscoveryApp:
             traceback.print_exc()
         
         except KeyboardInterrupt:
-            print("\n\nInterrupted by user")
-            self.is_running = False
-            self.should_stop = False
+            # In production, KeyboardInterrupt should not stop discovery
+            # Only explicit stop() call should stop it
+            print("\n\nInterrupted. Discovery will continue unless explicitly stopped via API.")
+            # Don't set should_stop here - let it continue
         except Exception as e:
             print(f"\nError during discovery: {e}")
-            self.is_running = False
-            self.should_stop = False
+            import traceback
+            traceback.print_exc()
+            # On error, mark as not running but don't set should_stop
+            # This allows the process to complete current operations
         finally:
+            # Mark as not running when complete, but discovery may have finished naturally
             self.is_running = False
-            self.should_stop = False
+            # Don't reset should_stop here - it might be set by explicit stop() call
     
     def _discover_category_leads(self, country: str, city: str, category: str) -> List[dict]:
         """Discover and process leads for a category"""

@@ -79,6 +79,7 @@ async def lifespan(app: FastAPI):
         LeadDiscoveryAppClass = _lazy_import_discovery_app()
         discovery_app = LeadDiscoveryAppClass(lead_callback=on_lead_found)
         print("✓ Discovery app initialized successfully")
+        print("✓ Discovery processes will continue running even if web server receives shutdown signals")
     except Exception as e:
         import traceback
         print(f"⚠ Warning: Failed to initialize discovery app: {e}")
@@ -94,8 +95,11 @@ async def lifespan(app: FastAPI):
     
     yield
     
-    # Shutdown (if needed)
-    pass
+    # Shutdown: Don't stop discovery threads here
+    # Discovery threads are non-daemon and will continue running
+    # They will only stop when explicitly requested via stop() method
+    print("⚠ Web server shutting down, but discovery threads will continue if running")
+    print("⚠ To stop discovery, use the /api/stop endpoint before shutting down")
 
 
 app = FastAPI(title="Lead Discovery API", version="1.0.0", lifespan=lifespan)
@@ -234,16 +238,19 @@ async def start_discovery(request: DiscoveryRequest):
         # Start discovery (non-blocking - runs in background)
         # Use daemon=False to ensure discovery continues even if client disconnects
         # The discovery should run independently of browser/client connections
+        # The thread will continue even if the web server receives shutdown signals
         import threading
         thread = threading.Thread(
             target=discovery_app.start,
             args=(request.country, request.city, request.categories),
-            daemon=False  # Changed to False so discovery continues after browser closes
+            daemon=False,  # Non-daemon thread continues even after main process signals
+            name="LeadDiscoveryThread"
         )
         thread.start()
         
-        print(f"✓ Discovery started successfully")
-        return {"success": True, "message": "Discovery started"}
+        print(f"✓ Discovery started successfully in background thread (non-daemon)")
+        print(f"✓ Thread will continue running independently of web server lifecycle")
+        return {"success": True, "message": "Discovery started and will continue running independently"}
     except Exception as e:
         import traceback
         error_msg = f"Failed to start discovery: {str(e)}"
@@ -254,13 +261,14 @@ async def start_discovery(request: DiscoveryRequest):
 
 @api_router.post("/stop")
 async def stop_discovery():
-    """Stop lead discovery"""
+    """Stop lead discovery (explicit stop only - discovery won't stop on server shutdown)"""
     if not discovery_app:
         raise HTTPException(status_code=503, detail="Discovery app not initialized. Please check credentials.json and Google Sheets configuration.")
     
     try:
         discovery_app.stop()
-        return {"success": True}
+        print("✓ Discovery stopped via API request")
+        return {"success": True, "message": "Discovery stopped. It will continue running if not explicitly stopped."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
