@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Building2, Phone, Mail, Globe, MapPin, Star, TrendingUp, Filter, Download } from 'lucide-react'
+import { Building2, Phone, Mail, Globe, MapPin, Star, Filter, Download } from 'lucide-react'
 import { type Lead, type DiscoveryStatus } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
@@ -11,7 +11,6 @@ interface LeadsListProps {
 }
 
 export function LeadsList({ leads, status }: LeadsListProps) {
-  const [filterScore, setFilterScore] = useState<number | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [expandedLead, setExpandedLead] = useState<string | null>(null)
 
@@ -19,19 +18,11 @@ export function LeadsList({ leads, status }: LeadsListProps) {
     const matchesSearch = lead.business_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          lead.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          lead.city.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesScore = filterScore === null || lead.lead_score >= filterScore
-    return matchesSearch && matchesScore
+    return matchesSearch
   })
 
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20'
-    if (score >= 60) return 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
-    if (score >= 40) return 'text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20'
-    return 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800'
-  }
-
   const exportToCSV = () => {
-    const headers = ['Business Name', 'Category', 'City', 'Country', 'Phone', 'Email', 'Website', 'Address', 'Rating', 'Review Count', 'Lead Score']
+    const headers = ['Business Name', 'Category', 'City', 'Country', 'Phone', 'Email', 'Website', 'Address', 'Rating', 'Review Count']
     const rows = filteredLeads.map(lead => [
       lead.business_name,
       lead.category,
@@ -42,8 +33,7 @@ export function LeadsList({ leads, status }: LeadsListProps) {
       lead.website,
       lead.address,
       lead.rating,
-      lead.review_count,
-      lead.lead_score
+      lead.review_count
     ])
     
     const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n')
@@ -93,16 +83,6 @@ export function LeadsList({ leads, status }: LeadsListProps) {
             <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
           </div>
           
-          <select
-            value={filterScore || ''}
-            onChange={(e) => setFilterScore(e.target.value ? Number(e.target.value) : null)}
-            className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-          >
-            <option value="">All Scores</option>
-            <option value="80">80+ (High Quality)</option>
-            <option value="60">60+ (Good)</option>
-            <option value="40">40+ (Fair)</option>
-          </select>
         </div>
       </div>
 
@@ -184,18 +164,6 @@ export function LeadsList({ leads, status }: LeadsListProps) {
                           <span>Website</span>
                         </a>
                       )}
-                    </div>
-                  </div>
-
-                  <div className="ml-4">
-                    <div className={cn(
-                      "px-4 py-2 rounded-lg font-bold text-lg text-center",
-                      getScoreColor(lead.lead_score)
-                    )}>
-                      <div className="flex items-center space-x-1">
-                        <TrendingUp className="h-5 w-5" />
-                        <span>{lead.lead_score}</span>
-                      </div>
                     </div>
                   </div>
                 </div>

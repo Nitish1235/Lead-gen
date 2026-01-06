@@ -176,7 +176,7 @@ class SheetsManager:
                 headers = [
                     "Country", "City", "Category", "Business Name",
                     "Phone", "Email", "Website", "Address",
-                    "Rating", "Review Count", "Lead Score",
+                    "Rating", "Review Count",
                     "Run ID", "Timestamp"
                 ]
                 self.service.spreadsheets().values().update(
@@ -227,7 +227,6 @@ class SheetsManager:
                 lead_data.get("address", ""),
                 lead_data.get("rating", ""),
                 lead_data.get("review_count", ""),
-                lead_data.get("lead_score", ""),
                 lead_data.get("run_id", ""),
                 lead_data.get("timestamp", ""),
             ]

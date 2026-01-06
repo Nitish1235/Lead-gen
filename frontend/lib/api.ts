@@ -66,7 +66,6 @@ export interface Lead {
   address: string
   rating: number | string
   review_count: number
-  lead_score: number
   run_id: string
   timestamp: string
 }

@@ -13,8 +13,6 @@ import config
 from countries import list_all_countries, search_countries, get_country_config, get_all_cities_for_country
 from sheets_manager import SheetsManager
 from maps_discoverer import MapsDiscoverer
-from lead_scorer import LeadScorer
-from website_analyzer import WebsiteAnalyzer
 
 
 class LeadDiscoveryApp:
@@ -22,8 +20,6 @@ class LeadDiscoveryApp:
     
     def __init__(self, lead_callback=None):
         self.sheets_manager = SheetsManager()
-        self.lead_scorer = LeadScorer()
-        self.website_analyzer = WebsiteAnalyzer()
         self.is_running = False
         self.should_stop = False
         self.run_id = str(uuid.uuid4())[:8]
@@ -246,7 +242,7 @@ class LeadDiscoveryApp:
                         success = self.sheets_manager.append_lead(lead)
                         if success:
                             leads.append(lead)
-                            print(f"    ✓ Saved (Score: {lead.get('lead_score', 0)})")
+                            print(f"    ✓ Saved")
                             # Call callback if provided (for UI updates)
                             if self.lead_callback:
                                 try:
@@ -288,29 +284,6 @@ class LeadDiscoveryApp:
             rating = business.get("rating")
             review_count = business.get("review_count", 0)
             
-            # Get website analysis (may already be done)
-            website_analysis = business.get("website_analysis", {})
-            if not website_analysis and website:
-                try:
-                    website_analysis = self.website_analyzer.analyze(website)
-                    # Extract email if not found
-                    if not email and website_analysis.get("word_count", 0) > 0:
-                        # Email extraction could be added here
-                        pass
-                except Exception as e:
-                    print(f"      Warning: Website analysis failed: {e}")
-                    website_analysis = {}
-            
-            # Calculate lead score
-            score = self.lead_scorer.calculate_score(
-                has_phone=bool(phone),
-                has_email=bool(email),
-                has_address=bool(address),
-                rating=rating,
-                review_count=review_count,
-                website_analysis=website_analysis
-            )
-            
             # Build lead dictionary
             lead = {
                 "country": country,
@@ -323,7 +296,6 @@ class LeadDiscoveryApp:
                 "address": address,
                 "rating": rating if rating else "",
                 "review_count": review_count if review_count else 0,
-                "lead_score": score,
                 "run_id": self.run_id,
                 "timestamp": datetime.now().isoformat(),
             }

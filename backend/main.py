@@ -360,14 +360,11 @@ async def get_stats():
     if not current_leads:
         return {
             "total_leads": 0,
-            "avg_score": 0,
             "by_category": {},
             "by_country": {},
         }
     
     total = len(current_leads)
-    scores = [lead.get("lead_score", 0) for lead in current_leads if isinstance(lead.get("lead_score"), (int, float))]
-    avg_score = sum(scores) / len(scores) if scores else 0
     
     # Count by category
     by_category: Dict[str, int] = {}
@@ -383,7 +380,6 @@ async def get_stats():
     
     return {
         "total_leads": total,
-        "avg_score": round(avg_score, 2),
         "by_category": by_category,
         "by_country": by_country,
     }
