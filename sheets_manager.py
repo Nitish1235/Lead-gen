@@ -70,12 +70,11 @@ class SheetsManager:
         except Exception as e:
             raise Exception(f"Failed to initialize Google Sheets service: {e}")
     
-    def _get_worksheet_name(self, country: str, city: str) -> str:
-        """Generate worksheet name in format: country-city"""
+    def _get_worksheet_name(self, country: str) -> str:
+        """Generate worksheet name in format: country (country-wise sheets)"""
         # Clean name: remove special characters, replace spaces with hyphens
         clean_country = re.sub(r'[^\w\s-]', '', country).strip().replace(' ', '-')
-        clean_city = re.sub(r'[^\w\s-]', '', city).strip().replace(' ', '-')
-        return f"{clean_country}-{clean_city}"
+        return clean_country
     
     def _worksheet_exists(self, worksheet_name: str) -> bool:
         """Check if worksheet exists in the spreadsheet"""
@@ -133,24 +132,23 @@ class SheetsManager:
             print(f"Unexpected error creating worksheet: {e}")
             return False
     
-    def _get_or_create_worksheet(self, country: str, city: str) -> Optional[str]:
+    def _get_or_create_worksheet(self, country: str) -> Optional[str]:
         """
-        Get existing worksheet name or create new one for country-city
+        Get existing worksheet name or create new one for country (country-wise sheets)
         
         Args:
             country: Country name
-            city: City name
             
         Returns:
             Worksheet name if successful, None otherwise
         """
-        # Check cache first
-        cache_key = f"{country}-{city}"
+        # Check cache first (country-only cache key)
+        cache_key = country
         if cache_key in self._worksheet_cache:
             return self._worksheet_cache[cache_key]
         
-        # Generate worksheet name
-        worksheet_name = self._get_worksheet_name(country, city)
+        # Generate worksheet name (country-only)
+        worksheet_name = self._get_worksheet_name(country)
         
         # Check if worksheet exists
         if not self._worksheet_exists(worksheet_name):
@@ -204,16 +202,15 @@ class SheetsManager:
         """
         try:
             country = lead_data.get("country", "")
-            city = lead_data.get("city", "")
             
-            if not country or not city:
-                print(f"Error: Country and city are required in lead_data")
+            if not country:
+                print(f"Error: Country is required in lead_data")
                 return False
             
-            # Get or create worksheet for this country-city
-            worksheet_name = self._get_or_create_worksheet(country, city)
+            # Get or create worksheet for this country (country-wise sheets)
+            worksheet_name = self._get_or_create_worksheet(country)
             if not worksheet_name:
-                print(f"Error: Failed to get or create worksheet for {country}-{city}")
+                print(f"Error: Failed to get or create worksheet for {country}")
                 return False
             
             # Ensure headers exist
@@ -253,7 +250,7 @@ class SheetsManager:
     
     def append_leads(self, leads: List[Dict]) -> int:
         """
-        Append multiple leads to the sheet (groups by country-city)
+        Append multiple leads to the sheet (groups by country - country-wise sheets)
         
         Args:
             leads: List of lead dictionaries
@@ -264,7 +261,7 @@ class SheetsManager:
         if not leads:
             return 0
         
-        # Group leads by country-city (each gets its own worksheet)
+        # Group leads by country (each country gets its own worksheet)
         success_count = 0
         for lead_data in leads:
             if self.append_lead(lead_data):
@@ -274,20 +271,20 @@ class SheetsManager:
     
     def check_duplicate(self, phone: Optional[str], website: Optional[str], country: str, city: str) -> bool:
         """
-        Check if a lead already exists in the country-city worksheet (by phone or website)
+        Check if a lead already exists in the country worksheet (by phone or website)
         
         Args:
             phone: Phone number to check
             website: Website URL to check
             country: Country name (to identify worksheet)
-            city: City name (to identify worksheet)
+            city: City name (not used for worksheet identification, but kept for compatibility)
         
         Returns:
             True if duplicate exists, False otherwise
         """
         try:
-            # Get worksheet name for this country-city
-            worksheet_name = self._get_or_create_worksheet(country, city)
+            # Get worksheet name for this country (country-wise sheets)
+            worksheet_name = self._get_or_create_worksheet(country)
             if not worksheet_name:
                 return False  # If worksheet doesn't exist, no duplicates
             
