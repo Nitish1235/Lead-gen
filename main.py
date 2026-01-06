@@ -10,11 +10,10 @@ from datetime import datetime
 from typing import List, Optional
 import uuid
 import config
-from countries import list_all_countries, search_countries, get_country_config
+from countries import list_all_countries, search_countries, get_country_config, get_all_cities_for_country
 from sheets_manager import SheetsManager
 from maps_discoverer import MapsDiscoverer
 from lead_scorer import LeadScorer
-from website_analyzer import WebsiteAnalyzer
 from website_analyzer import WebsiteAnalyzer
 
 
@@ -76,14 +75,33 @@ class LeadDiscoveryApp:
         if categories is None:
             categories = config.DEFAULT_CATEGORIES
         
+        # Get all cities for the country
+        all_cities = get_all_cities_for_country(country)
+        if not all_cities:
+            print(f"Error: No cities found for country '{country}'")
+            self.is_running = False
+            return
+        
+        # Find starting city index and reorder cities list to start from selected city
+        try:
+            start_city_index = all_cities.index(city)
+            # Reorder: start from selected city, then continue with remaining cities
+            cities_to_process = all_cities[start_city_index:] + all_cities[:start_city_index]
+        except ValueError:
+            # If city not found in list, use it as the only city
+            print(f"Warning: City '{city}' not found in country cities list. Using only this city.")
+            cities_to_process = [city]
+        
         print(f"\n{'='*60}")
         print(f"B2B Lead Discovery Started")
         print(f"{'='*60}")
         print(f"Run ID: {self.run_id}")
         print(f"Country: {country}")
-        print(f"City: {city}")
+        print(f"Starting City: {city}")
+        print(f"Total Cities: {len(cities_to_process)}")
         print(f"Categories: {len(categories)}")
         print(f"Mode: {'Long-running' if long_running else 'Standard'}")
+        print(f"Strategy: Complete each category for all cities before moving to next category")
         print(f"{'='*60}\n")
         
         start_time = time.time()
@@ -92,6 +110,7 @@ class LeadDiscoveryApp:
         try:
             total_leads_found = 0
             
+            # NEW LOGIC: For each category, iterate through all cities
             for category_idx, category in enumerate(categories, 1):
                 if self.should_stop:
                     print("\nStopping as requested...")
@@ -104,22 +123,47 @@ class LeadDiscoveryApp:
                 
                 self.current_category = category
                 
-                print(f"\n[{category_idx}/{len(categories)}] Searching: {category}")
-                print(f"Location: {city}, {country}")
-                print("-" * 60)
+                print(f"\n{'='*60}")
+                print(f"Category [{category_idx}/{len(categories)}]: {category}")
+                print(f"{'='*60}")
                 
-                # Discover businesses
-                leads = self._discover_category_leads(country, city, category)
-                
-                if leads:
-                    print(f"Found {len(leads)} leads for '{category}'")
-                    total_leads_found += len(leads)
-                else:
-                    print(f"No leads found for '{category}'")
+                # For this category, iterate through all cities
+                for city_idx, current_city in enumerate(cities_to_process, 1):
+                    if self.should_stop:
+                        print("\nStopping as requested...")
+                        break
+                    
+                    # Check time limit for long-running mode
+                    if max_seconds and (time.time() - start_time) > max_seconds:
+                        print(f"\nMaximum time limit ({max_hours} hours) reached.")
+                        break
+                    
+                    self.current_city = current_city
+                    
+                    print(f"\n[{city_idx}/{len(cities_to_process)}] City: {current_city}, {country}")
+                    print(f"Category: {category}")
+                    print("-" * 60)
+                    
+                    # Discover businesses for this category in this city
+                    leads = self._discover_category_leads(country, current_city, category)
+                    
+                    if leads:
+                        print(f"✓ Found {len(leads)} leads for '{category}' in {current_city}")
+                        total_leads_found += len(leads)
+                    else:
+                        print(f"  No leads found for '{category}' in {current_city}")
+                    
+                    # Delay between cities (except for last city of last category)
+                    if city_idx < len(cities_to_process) and not self.should_stop:
+                        print(f"\nWaiting {config.DEFAULT_DELAY_BETWEEN_SEARCHES} seconds before next city...")
+                        time.sleep(config.DEFAULT_DELAY_BETWEEN_SEARCHES)
                 
                 # Delay between categories (except for last one)
                 if category_idx < len(categories) and not self.should_stop:
-                    print(f"\nWaiting {config.DEFAULT_DELAY_BETWEEN_SEARCHES} seconds before next category...")
+                    print(f"\n{'='*60}")
+                    print(f"Completed category '{category}' for all {len(cities_to_process)} cities")
+                    print(f"Waiting {config.DEFAULT_DELAY_BETWEEN_SEARCHES} seconds before next category...")
+                    print(f"{'='*60}\n")
                     time.sleep(config.DEFAULT_DELAY_BETWEEN_SEARCHES)
             
             print(f"\n{'='*60}")
